@@ -1,6 +1,6 @@
 <div class="app">
   <!-- Pantalla de Login Admin -->
-  @if (isAdmin() === false && (search() === 'admin' || (1===0))) {
+  @if (!isAdmin() && search() === 'admin') {
     <!-- Se activa tipeando 'admin' en el buscador o via URL -->
     <div class="admin-login-overlay">
       <div class="admin-card">
