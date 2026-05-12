@@ -1,25 +1,28 @@
 # Stage 1: Build the Angular app
 FROM node:20-alpine AS builder
 WORKDIR /app
-
-# Install dependencies first (for better caching)
 COPY package*.json ./
 RUN npm ci
-
-# Copy the rest of the project and build
 COPY . .
 RUN npm run build
 
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
+# Stage 2: Serve Backend & Frontend together
+FROM node:20-alpine
+WORKDIR /app
 
-# Copy custom Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Install backend dependencies
+COPY backend/package*.json ./backend/
+RUN cd backend && npm ci
 
-# Copy the built application from the builder stage
-COPY --from=builder /app/dist/molienda/browser /usr/share/nginx/html
+# Copy backend source code
+COPY backend/ ./backend/
 
-# Expose port 80
-EXPOSE 80
+# Copy the built Angular application from the builder stage
+COPY --from=builder /app/dist/molienda/browser ./dist/molienda/browser
 
-CMD ["nginx", "-g", "daemon off;"]
+# Expose port 3000 (Backend handles both API and Frontend)
+EXPOSE 3000
+
+# Start the Node.js server
+WORKDIR /app/backend
+CMD ["node", "server.js"]

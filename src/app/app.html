@@ -1,124 +1,171 @@
 <div class="app">
+  <!-- Pantalla de Login Admin -->
+  @if (isAdmin() === false && (search() === 'admin' || (1===0))) {
+    <!-- Se activa tipeando 'admin' en el buscador o via URL -->
+    <div class="admin-login-overlay">
+      <div class="admin-card">
+        <h3>Acceso Administrativo</h3>
+        <input type="password" [(ngModel)]="loginPassword" placeholder="Contraseña">
+        <button (click)="login()">Ingresar</button>
+      </div>
+    </div>
+  }
+
+  <!-- Modal de Edición Admin -->
+  @if (editingItem()) {
+    <div class="admin-edit-overlay">
+      <div class="admin-card">
+        <h3>Editar Producto</h3>
+        <label>Nombre</label>
+        <input type="text" [(ngModel)]="editingItem()!.name">
+        
+        <label>Precio ($)</label>
+        <input type="number" [(ngModel)]="editingItem()!.price">
+        
+        <label>Descripción</label>
+        <textarea [(ngModel)]="editingItem()!.desc"></textarea>
+        
+        <div class="admin-actions">
+          <button class="cancel-btn" (click)="cancelEdit()">Cancelar</button>
+          <button class="save-btn" (click)="saveEdit()">Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+  }
+
   <div class="header">
     <div class="logo"><span>Petit</span> Patisserie</div>
     <div class="tagline">Café · Pastelería · Mendoza</div>
+    @if (isAdmin()) {
+      <div class="admin-badge">Modo Edición Activado</div>
+    }
   </div>
 
   <div class="search-wrap">
-    <!-- Icono de lupa SVG -->
     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="11" cy="11" r="8"></circle>
       <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
     </svg>
-    <input class="search-input" id="search" placeholder="Buscar en la carta..." [value]="search()" (input)="doSearch($event)" autocomplete="off">
+    <input class="search-input" id="search" placeholder="Buscar en la carta... (o escribe 'admin')" [value]="search()" (input)="doSearch($event)" autocomplete="off">
   </div>
 
-  <div class="cats-wrapper">
-    <div class="cats" id="cats">
-      @for (cat of cats; track cat) {
-        <button class="cat-btn" [class.active]="cat === activeCat() && !search()" (click)="setCat(cat)">{{cat}}</button>
-      }
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando menú...</p>
     </div>
-  </div>
+  } @else {
+    <div class="cats-wrapper">
+      <div class="cats" id="cats">
+        @for (cat of cats(); track cat) {
+          <button class="cat-btn" [class.active]="cat === activeCat() && !search()" (click)="setCat(cat)">{{cat}}</button>
+        }
+      </div>
+    </div>
 
-  <div id="content">
-    @if (searchMatches(); as searchData) {
-      @if (searchData.totalFound > 0) {
-        @for (sec of searchData.matches; track sec.cat) {
-          <div class="divider-label">{{sec.cat}}</div>
-          @if (sec.type === 'promos') {
-            <div class="promos-grid">
-              @for (item of sec.items; track item.name) {
-                <div class="promo-card">
-                  <div class="promo-header">
-                    <div class="promo-name">
-                      {{item.name}}
-                      @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                      @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
-                    </div>
-                    <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
-                  </div>
-                  @if (item.desc) {
-                    <div class="promo-includes">{{item.desc}}</div>
-                  }
-                </div>
-              }
-            </div>
-          } @else {
-            <div class="items">
-              @for (item of sec.items; track item.name) {
-                <div class="item">
-                  <div class="item-left">
-                    <div class="item-name">
-                      {{item.name}}
-                      @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                      @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
+    <div id="content">
+      @if (searchMatches(); as searchData) {
+        @if (searchData.totalFound > 0) {
+          @for (sec of searchData.matches; track sec.cat) {
+            <div class="divider-label">{{sec.cat}}</div>
+            @if (sec.type === 'promos') {
+              <div class="promos-grid">
+                @for (item of sec.items; track item.id) {
+                  <div class="promo-card" [class.editable]="isAdmin()" (click)="startEdit(item)">
+                    <div class="promo-header">
+                      <div class="promo-name">
+                        {{item.name}}
+                        @if (isAdmin()) { <span class="edit-icon">✏️</span> }
+                        @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
+                        @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
+                      </div>
+                      <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
                     </div>
                     @if (item.desc) {
-                      <div class="item-desc">{{item.desc}}</div>
+                      <div class="promo-includes">{{item.desc}}</div>
                     }
                   </div>
-                  <div class="item-price" [class.free]="!item.price">
-                    {{fmtPrice(item.price, item.desc)}}
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        }
-      } @else {
-        <div class="empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            <line x1="8" y1="11" x2="14" y2="11"></line>
-          </svg>
-          <p>No encontramos resultados para "<strong>{{search()}}</strong>"</p>
-        </div>
-      }
-    } @else if (currentContent(); as content) {
-      <div class="section-title">{{content.cat}}</div>
-      @if (content.type === 'promos') {
-        <div class="promos-grid">
-          @for (item of content.items; track item.name) {
-            <div class="promo-card">
-              <div class="promo-header">
-                <div class="promo-name">
-                  {{item.name}}
-                  @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                  @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
-                </div>
-                <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
-              </div>
-              @if (item.desc) {
-                <div class="promo-includes">{{item.desc}}</div>
-              }
-            </div>
-          }
-        </div>
-      } @else {
-        <div class="items">
-          @for (item of content.items; track item.name) {
-            <div class="item">
-              <div class="item-left">
-                <div class="item-name">
-                  {{item.name}}
-                  @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                  @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
-                </div>
-                @if (item.desc) {
-                  <div class="item-desc">{{item.desc}}</div>
                 }
               </div>
-              <div class="item-price" [class.free]="!item.price">
-                {{fmtPrice(item.price, item.desc)}}
+            } @else {
+              <div class="items">
+                @for (item of sec.items; track item.id) {
+                  <div class="item" [class.editable]="isAdmin()" (click)="startEdit(item)">
+                    <div class="item-left">
+                      <div class="item-name">
+                        {{item.name}}
+                        @if (isAdmin()) { <span class="edit-icon">✏️</span> }
+                        @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
+                        @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
+                      </div>
+                      @if (item.desc) {
+                        <div class="item-desc">{{item.desc}}</div>
+                      }
+                    </div>
+                    <div class="item-price" [class.free]="!item.price">
+                      {{fmtPrice(item.price, item.desc)}}
+                    </div>
+                  </div>
+                }
               </div>
-            </div>
+            }
           }
-        </div>
+        } @else {
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+            <p>No encontramos resultados para "<strong>{{search()}}</strong>"</p>
+          </div>
+        }
+      } @else if (currentContent(); as content) {
+        <div class="section-title">{{content.cat}}</div>
+        @if (content.type === 'promos') {
+          <div class="promos-grid">
+            @for (item of content.items; track item.id) {
+              <div class="promo-card" [class.editable]="isAdmin()" (click)="startEdit(item)">
+                <div class="promo-header">
+                  <div class="promo-name">
+                    {{item.name}}
+                    @if (isAdmin()) { <span class="edit-icon">✏️</span> }
+                    @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
+                    @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
+                  </div>
+                  <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
+                </div>
+                @if (item.desc) {
+                  <div class="promo-includes">{{item.desc}}</div>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="items">
+            @for (item of content.items; track item.id) {
+              <div class="item" [class.editable]="isAdmin()" (click)="startEdit(item)">
+                <div class="item-left">
+                  <div class="item-name">
+                    {{item.name}}
+                    @if (isAdmin()) { <span class="edit-icon">✏️</span> }
+                    @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
+                    @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
+                  </div>
+                  @if (item.desc) {
+                    <div class="item-desc">{{item.desc}}</div>
+                  }
+                </div>
+                <div class="item-price" [class.free]="!item.price">
+                  {{fmtPrice(item.price, item.desc)}}
+                </div>
+              </div>
+            }
+          </div>
+        }
       }
-    }
-  </div>
+    </div>
+  }
 
   <div class="info-strip-container">
     <div class="info-strip">
