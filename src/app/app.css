@@ -1,14 +1,14 @@
 .app { 
   max-width: 680px; 
   margin: 0 auto; 
-  padding: 0 0 5rem; /* Extra padding for sticky footer */
+  padding: 0 1.5rem 5rem; /* Added horizontal padding to main container */
   min-height: 100vh;
   position: relative;
 }
 
 .header { 
   text-align: center; 
-  padding: 3rem 1.5rem 2rem; 
+  padding: 3rem 0 2rem; /* Removed horizontal padding as it's handled by .app */
 }
 
 .logo { 
@@ -37,7 +37,7 @@
 
 /* Search Bar */
 .search-wrap { 
-  padding: 0 1.5rem 1.5rem; 
+  padding: 0 0 1.5rem; 
   position: relative;
 }
 
@@ -66,7 +66,7 @@
 
 .search-icon {
   position: absolute;
-  left: 2rem;
+  left: 1rem;
   top: 50%;
   transform: translateY(-50%) translateY(-12px);
   color: var(--muted);
@@ -79,23 +79,31 @@
 .cats-wrapper {
   position: sticky;
   top: 0;
-  background: rgba(251, 248, 241, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--cream); 
   z-index: 10;
   border-bottom: 1px solid var(--border-light);
   padding: 1rem 0;
+  margin: 0 -1.5rem; /* Stretch wrapper to screen edge */
 }
 
 .cats { 
   display: flex; 
   gap: 8px; 
   overflow-x: auto; 
-  padding: 0 1.5rem; 
+  padding-bottom: 4px;
+  margin-bottom: -4px;
+  padding-left: 1.5rem; /* Scroll items start matching .app padding */
+  padding-right: 1.5rem; /* And end with padding */
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none; 
 }
 
 .cats::-webkit-scrollbar { display: none; }
+
+.cats::after {
+  content: '';
+  padding-right: 1.5rem; 
+}
 
 .cat-btn { 
   white-space: nowrap; 
@@ -103,12 +111,12 @@
   border-radius: 100px; 
   border: 1px solid var(--border); 
   background: var(--surface); 
-  font-size: 14px; 
+  font-size: 14.5px; 
   font-family: 'Outfit', sans-serif; 
   color: var(--muted); 
   cursor: pointer; 
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-  font-weight: 500; 
+  font-weight: 600; 
 }
 
 .cat-btn:hover {
@@ -133,7 +141,7 @@
   font-family: 'Playfair Display', serif; 
   font-size: 24px; 
   font-weight: 600;
-  padding: 0 1.5rem 1rem; 
+  padding: 0 0 1rem; 
   color: var(--dark); 
 }
 
@@ -141,7 +149,7 @@
   display: flex; 
   align-items: center; 
   gap: 12px; 
-  padding: 1.5rem 1.5rem 0.5rem; 
+  padding: 1.5rem 0 0.5rem; 
   font-size: 12px; 
   font-weight: 600;
   letter-spacing: 0.15em; 
@@ -160,18 +168,18 @@
 .items { 
   display: flex; 
   flex-direction: column; 
-  padding: 0 1rem;
+  padding: 0;
 }
 
 .item { 
   display: flex; 
   align-items: center; 
   justify-content: space-between; 
-  padding: 1.2rem 1rem; 
+  padding: 1.2rem 0; 
   border-bottom: 1px solid var(--border-light); 
   cursor: pointer; 
   transition: all 0.2s ease;
-  border-radius: 12px;
+  border-radius: 0;
   animation: fadeInItem 0.4s ease-out forwards;
   opacity: 0;
 }
@@ -193,8 +201,7 @@
 .item:nth-child(n+10) { animation-delay: 0.5s; }
 
 .item:hover { 
-  background: var(--surface); 
-  box-shadow: var(--shadow-sm);
+  background: transparent; 
   transform: translateX(4px);
   border-color: transparent;
 }
@@ -265,7 +272,7 @@
   display: grid; 
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
   gap: 1.2rem; 
-  padding: 0 1.5rem;
+  padding: 0;
 }
 
 .promo-card { 

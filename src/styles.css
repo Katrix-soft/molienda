@@ -16,7 +16,7 @@
   --dark: #2c241b;
   --dark-hover: #1f1913;
   --text-main: #3d342b;
-  --muted: #8c7e6d;
+  --muted: #6b5c4b; /* Improved contrast */
   --border: #ebdcca;
   --border-light: #f4ece1;
   --shadow-sm: 0 2px 8px rgba(44, 36, 27, 0.04);
