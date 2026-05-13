@@ -57,6 +57,7 @@ export class App implements OnInit {
   inflationPercentage = signal<number>(0);
   showPdfModal = signal<boolean>(false);
   showQrModal = signal<boolean>(false);
+  hasPdf = signal<boolean>(false);
   isUploading = signal<boolean>(false);
 
   // Computed properties
@@ -94,6 +95,7 @@ export class App implements OnInit {
     this.checkAdminUrl();
     this.fetchMenu();
     this.checkBiometrics();
+    this.checkPdf();
 
     // Debugging global errors
     window.onerror = (msg, url, line, col, error) => {
@@ -112,6 +114,22 @@ export class App implements OnInit {
         this.adminToken.set(savedToken);
         this.isAdmin.set(true);
       }
+    }
+  }
+
+  getPdfUrl() {
+    const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+    return `${host}/public/menu_completo.pdf`;
+  }
+
+  async checkPdf() {
+    try {
+      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+      const res = await fetch(`${host}/api/menu-pdf-check`);
+      const data = await res.json();
+      this.hasPdf.set(data.exists);
+    } catch (e) {
+      this.hasPdf.set(false);
     }
   }
 

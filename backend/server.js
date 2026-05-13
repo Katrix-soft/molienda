@@ -31,6 +31,7 @@ const verifyToken = (req, res, next) => {
 };
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false })); // CSP off para no romper Angular
 app.use(cors());
 app.use(express.json());
@@ -82,9 +83,16 @@ const RP_NAME = 'Petit Patisserie';
 // In-memory store for challenges (local use only)
 const challenges = new Map();
 
+const fs = require('fs');
+const publicDir = path.join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir);
+}
+app.use('/public', express.static(publicDir));
+
 // Multer config for PDF
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'public/'),
+  destination: (req, file, cb) => cb(null, publicDir),
   filename: (req, file, cb) => cb(null, 'menu_completo.pdf')
 });
 const upload = multer({ storage });
@@ -276,6 +284,11 @@ app.get('/api/menu', (req, res) => {
     });
     res.json(menu);
   });
+});
+
+app.get('/api/menu-pdf-check', (req, res) => {
+  const filePath = path.join(publicDir, 'menu_completo.pdf');
+  res.json({ exists: fs.existsSync(filePath) });
 });
 
 // Update an item (Protected)
