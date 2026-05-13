@@ -1,9 +1,35 @@
+:root {
+  --primary: #8e5494; /* Pantone 258 C - Purple */
+  --secondary: #4e3629; /* Pantone 476 C - Brown */
+  --accent: #8fe3d4; /* Pantone 332 C - Mint */
+  --bg: #f1e5d7; /* Pantone 9184 C - Cream */
+  --surface: #ffffff;
+  --text: #2d1b15;
+  --muted: #6b5a54;
+  --border: #e2d5c8;
+  --gold: #4e3629; 
+  --gold-light: #f3c4cc; /* Pantone 699 C - Pink as light highlight */
+  --card: #ffffff;
+  --shadow-sm: 0 2px 4px rgba(78, 54, 41, 0.05);
+  --shadow-md: 0 4px 12px rgba(78, 54, 41, 0.1);
+  --shadow-lg: 0 12px 24px rgba(78, 54, 41, 0.15);
+  
+  --font-title: 'Playfair Display', serif;
+  --font-body: 'Cabin', sans-serif;
+  --font-accent: 'Tenor Sans', sans-serif;
+  
+  /* Fallbacks */
+  --dark: #2d1b15;
+  --cream: #f1e5d7;
+}
+
 .app { 
   max-width: 680px; 
   margin: 0 auto; 
-  padding: 0 1.5rem 5rem; /* Added horizontal padding to main container */
+  padding: 0 1.5rem 5rem; 
   min-height: 100vh;
   position: relative;
+  background-color: var(--bg);
 }
 
 .header { 
@@ -47,7 +73,7 @@
   border: 1px solid var(--border); 
   border-radius: 100px; 
   font-size: 15px; 
-  font-family: 'Outfit', sans-serif; 
+  font-family: var(--font-body); 
   background: var(--surface); 
   color: var(--dark); 
   outline: none; 
@@ -79,23 +105,32 @@
 .cats-wrapper {
   position: sticky;
   top: 0;
-  background: var(--cream); 
+  background: var(--bg); 
   z-index: 10;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border);
   padding: 1rem 0;
-  margin: 0 -1.5rem; /* Stretch wrapper to screen edge */
+  margin: 0 -1.5rem;
+  overflow: hidden; /* Contain the scrollable flexbox */
 }
 
 .cats { 
   display: flex; 
   gap: 8px; 
-  overflow-x: auto; 
-  padding-bottom: 4px;
-  margin-bottom: -4px;
-  padding-left: 1.5rem; /* Scroll items start matching .app padding */
-  padding-right: 1.5rem; /* And end with padding */
+  overflow-x: scroll; 
+  overflow-y: hidden;
+  padding: 8px 1.5rem 15px; 
+  margin: 0;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; 
+  scroll-behavior: smooth;
+  cursor: grab;
+}
+
+.cats:active {
+  cursor: grabbing;
+}
+
+.cats::-webkit-scrollbar {
+  display: none; /* Keep it clean */
 }
 
 .cats::-webkit-scrollbar { display: none; }
@@ -112,7 +147,7 @@
   border: 1px solid var(--border); 
   background: var(--surface); 
   font-size: 14.5px; 
-  font-family: 'Outfit', sans-serif; 
+  font-family: var(--font-accent); 
   color: var(--muted); 
   cursor: pointer; 
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
@@ -125,11 +160,11 @@
 }
 
 .cat-btn.active { 
-  background: var(--dark); 
-  color: var(--surface); 
-  border-color: var(--dark); 
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  background: var(--primary); 
+  color: #fff; 
+  border-color: var(--primary); 
+  box-shadow: 0 4px 10px rgba(142, 84, 148, 0.3);
+  transform: translateY(-2px);
 }
 
 /* Content Area */
@@ -212,9 +247,11 @@
 }
 
 .item-name { 
-  font-size: 16px; 
-  font-weight: 500; 
-  color: var(--dark); 
+  font-family: var(--font-title);
+  font-size: 19px; 
+  font-weight: 700; 
+  color: var(--secondary); 
+  margin-bottom: 4px;
 }
 
 .item-desc { 
@@ -225,14 +262,11 @@
 }
 
 .item-price { 
-  font-family: 'Outfit', sans-serif; 
-  font-size: 16px; 
-  font-weight: 600; 
-  color: var(--gold-dark); 
-  white-space: nowrap; 
-  background: var(--gold-light);
-  padding: 4px 10px;
-  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 19px; 
+  font-weight: 700; 
+  color: var(--primary); 
+  white-space: nowrap;
 }
 
 .item-price.free { 
@@ -315,7 +349,7 @@
 }
 
 .promo-price { 
-  font-family: 'Outfit', sans-serif; 
+  font-family: var(--font-body); 
   font-size: 18px; 
   color: var(--gold-dark); 
   font-weight: 600; 
@@ -509,7 +543,7 @@
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
 }
 
@@ -742,22 +776,7 @@
 
 
 /* Custom Alerts & Premium Modals */
-:root {
-  --primary: #8e5494; /* Pantone 258 C - Purple */
-  --secondary: #4e3629; /* Pantone 476 C - Brown */
-  --accent: #8fe3d4; /* Pantone 332 C - Mint */
-  --bg: #f1e5d7; /* Pantone 9184 C - Cream */
-  --surface: #ffffff;
-  --text: #2d1b15;
-  --muted: #6b5a54;
-  --border: #e2d5c8;
-  --gold: #4e3629; 
-  --gold-light: #f3c4cc; /* Pantone 699 C - Pink as light highlight */
-  --card: #ffffff;
-  --shadow-sm: 0 2px 4px rgba(78, 54, 41, 0.05);
-  --shadow-md: 0 4px 12px rgba(78, 54, 41, 0.1);
-  --shadow-lg: 0 12px 24px rgba(78, 54, 41, 0.15);
-}
+
 
 .custom-alert-overlay {
   position: fixed;
