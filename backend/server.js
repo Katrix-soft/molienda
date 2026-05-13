@@ -68,11 +68,19 @@ db.serialize(() => {
   )`);
 });
 
+// RP Config helper
+const getRPConfig = (req) => {
+  const host = req.get('host') || 'localhost';
+  const rpID = host.split(':')[0];
+  const protocol = req.protocol;
+  const origin = `${protocol}://${host}`;
+  return { rpID, origin };
+};
+
+const RP_NAME = 'Petit Patisserie';
+
 // In-memory store for challenges (local use only)
 const challenges = new Map();
-const RP_NAME = 'Petit Patisserie';
-const RP_ID = 'localhost'; // Change to molienda.katrix.com.ar in production
-const ORIGIN = `http://${RP_ID}:3000`;
 
 // Multer config for PDF
 const storage = multer.diskStorage({
@@ -236,18 +244,18 @@ const INITIAL_DATA = {
   },
 };
 
-db.get("SELECT COUNT(*) as count FROM items", (err, row) => {
-  if (row && row.count === 0) {
-    const stmt = db.prepare("INSERT INTO items (category, cat_type, name, price, desc, tag) VALUES (?, ?, ?, ?, ?, ?)");
-    for (const cat of Object.keys(INITIAL_DATA)) {
-      for (const item of INITIAL_DATA[cat].items) {
-        stmt.run(cat, INITIAL_DATA[cat].type, item.name, item.price || 0, item.desc || null, item.tag || null);
+  db.get("SELECT count(*) as count FROM items", (err, row) => {
+    if (row && row.count === 0 && !process.env.SKIP_SEED) {
+      console.log("Seeding initial data...");
+      const stmt = db.prepare("INSERT INTO items (category, cat_type, name, price, desc, tag) VALUES (?, ?, ?, ?, ?, ?)");
+      for (const cat of Object.keys(INITIAL_DATA)) {
+        for (const item of INITIAL_DATA[cat].items) {
+          stmt.run(cat, INITIAL_DATA[cat].type, item.name, item.price || 0, item.desc || null, item.tag || null);
+        }
       }
+      stmt.finalize();
     }
-    stmt.finalize();
-    console.log("Database seeded successfully!");
-  }
-});
+  });
 
 // Get the full menu
 app.get('/api/menu', (req, res) => {
@@ -387,9 +395,10 @@ app.get('/api/auth/check', (req, res) => {
 
 // 1. Registration Options (Protected: needs password login first to setup)
 app.get('/api/auth/register-options', verifyToken, async (req, res) => {
+  const { rpID } = getRPConfig(req);
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
-    rpID: RP_ID,
+    rpID,
     userID: Buffer.from('admin'),
     userName: 'admin@petitpatisserie.com',
     attestationType: 'none',
@@ -411,11 +420,12 @@ app.post('/api/auth/verify-registration', verifyToken, async (req, res) => {
   const expectedChallenge = challenges.get('admin-reg');
 
   try {
+    const { rpID, origin } = getRPConfig(req);
     const verification = await verifyRegistrationResponse({
       response: body,
       expectedChallenge,
-      expectedOrigin: ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
       requireUserVerification: false,
     });
 
@@ -447,8 +457,9 @@ app.post('/api/auth/verify-registration', verifyToken, async (req, res) => {
 
 // 3. Login Options
 app.get('/api/auth/login-options', async (req, res) => {
+  const { rpID } = getRPConfig(req);
   const options = await generateAuthenticationOptions({
-    rpID: RP_ID,
+    rpID,
     userVerification: 'preferred',
   });
 
@@ -470,14 +481,15 @@ app.post('/api/auth/verify-login', async (req, res) => {
     }
 
     try {
+      const { rpID, origin } = getRPConfig(req);
       const verification = await verifyAuthenticationResponse({
         response: body,
         expectedChallenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: origin,
+        expectedRPID: rpID,
         authenticator: {
           credentialID: Buffer.from(authenticator.id, 'base64'),
-          credentialPublicKey: authenticator.publicKey,
+          credentialPublicKey: Buffer.from(authenticator.publicKey),
           counter: authenticator.counter,
         },
         requireUserVerification: false,

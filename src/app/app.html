@@ -101,6 +101,20 @@
           <span class="tool-desc">Subir carta</span>
         </div>
       </div>
+      <div class="tool-card" (click)="showQrModal.set(true)">
+        <div class="tool-icon">📲</div>
+        <div class="tool-info">
+          <span class="tool-title">Compartir</span>
+          <span class="tool-desc">QR del menú</span>
+        </div>
+      </div>
+      <div class="tool-card tablet-only" (click)="fetchMenu()">
+        <div class="tool-icon">🔄</div>
+        <div class="tool-info">
+          <span class="tool-title">Refrescar</span>
+          <span class="tool-desc">Aguardar cambios</span>
+        </div>
+      </div>
     </div>
   }
 
@@ -134,55 +148,28 @@
         @if (searchData.totalFound > 0) {
           @for (sec of searchData.matches; track sec.cat) {
             <div class="divider-label">{{sec.cat}}</div>
-            @if (sec.type === 'promos') {
-              <div class="promos-grid">
-                @for (item of sec.items; track item.id) {
-                  <div class="promo-card" [class.editable]="isAdmin()" (click)="startEdit(item)">
-                    <div class="promo-header">
-                      <div class="promo-name">
-                        {{item.name}}
-                        @if (isAdmin()) { <span class="edit-icon">✏️</span> }
-                        @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                        @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
-                      </div>
-                      <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
+            <div class="promos-grid">
+              @for (item of sec.items; track item.id) {
+                <div class="promo-card" [class.editable]="isAdmin()" (click)="startEdit(item)">
+                  <div class="promo-header">
+                    <div class="promo-name">
+                      {{item.name}}
+                      @if (isAdmin()) { <span class="edit-icon">✏️</span> }
+                      @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
+                      @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
                     </div>
-                    @if (item.desc) {
-                      <div class="promo-includes">
-                        @for (part of getDescParts(item.desc); track part) {
-                          <span class="desc-chip">{{part}}</span>
-                        }
-                      </div>
-                    }
+                    <div class="promo-price" [class.free]="!item.price">{{fmtPrice(item.price, item.desc)}}</div>
                   </div>
-                }
-              </div>
-            } @else {
-              <div class="items">
-                @for (item of sec.items; track item.id) {
-                  <div class="item" [class.editable]="isAdmin()" (click)="startEdit(item)">
-                    <div class="item-left">
-                      <div class="item-name">
-                        {{item.name}}
-                        @if (isAdmin()) { <span class="edit-icon">✏️</span> }
-                        @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                        @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
-                      </div>
-                      @if (item.desc) {
-                        <div class="item-desc">
-                          @for (part of getDescParts(item.desc); track part) {
-                            <span class="desc-chip">{{part}}</span>
-                          }
-                        </div>
+                  @if (item.desc) {
+                    <div class="promo-includes">
+                      @for (part of getDescParts(item.desc); track part) {
+                        <span class="desc-chip">{{part}}</span>
                       }
                     </div>
-                    <div class="item-price" [class.free]="!item.price">
-                      {{fmtPrice(item.price, item.desc)}}
-                    </div>
-                  </div>
-                }
-              </div>
-            }
+                  }
+                </div>
+              }
+            </div>
           }
         } @else {
           <div class="empty">
@@ -196,58 +183,33 @@
         }
       } @else if (currentContent(); as content) {
         <div class="section-title">{{content.cat}}</div>
-        @if (content.type === 'promos') {
-          <div class="promos-grid">
-            @for (item of content.items; track item.id) {
-              <div class="promo-card" [class.editable]="isAdmin()" (click)="startEdit(item)">
-                <div class="promo-header">
-                  <div class="promo-name">
-                    {{item.name}}
-                    @if (isAdmin()) { <span class="edit-icon">✏️</span> }
-                    @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                    @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
-                  </div>
-                  <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
+        <div class="promos-grid">
+          @for (item of content.items; track item.id) {
+            <div class="promo-card" [class.editable]="isAdmin()" (click)="startEdit(item)">
+              <div class="promo-header">
+                <div class="promo-name">
+                  {{item.name}}
+                  @if (isAdmin()) { <span class="edit-icon">✏️</span> }
+                  @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
+                  @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
                 </div>
-                @if (item.desc) {
-                  <div class="promo-includes">
-                    @for (part of getDescParts(item.desc); track part) {
-                      <span class="desc-chip">{{part}}</span>
-                    }
-                  </div>
-                }
+                <div class="promo-price" [class.free]="!item.price">{{fmtPrice(item.price, item.desc)}}</div>
               </div>
-            }
-          </div>
-        } @else {
-          <div class="items">
-            @for (item of content.items; track item.id) {
-              <div class="item" [class.editable]="isAdmin()" (click)="startEdit(item)">
-                <div class="item-left">
-                  <div class="item-name">
-                    {{item.name}}
-                    @if (isAdmin()) { <span class="edit-icon">✏️</span> }
-                    @if (item.tag === 'sin-tacc') { <span class="badge badge-sin-tacc">Sin TACC</span> }
-                    @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
-                  </div>
-                  @if (item.desc) {
-                    <div class="item-desc">
-                      @for (part of getDescParts(item.desc); track part) {
-                        <span class="desc-chip">{{part}}</span>
-                      }
-                    </div>
+              @if (item.desc) {
+                <div class="promo-includes">
+                  @for (part of getDescParts(item.desc); track part) {
+                    <span class="desc-chip">{{part}}</span>
                   }
                 </div>
-                <div class="item-price" [class.free]="!item.price">
-                  {{fmtPrice(item.price, item.desc)}}
-                </div>
-              </div>
-            }
-          </div>
-        }
+              }
+            </div>
+          }
+        </div>
       }
     </div>
   }
+
+
 
   <div class="info-strip-container">
     <div class="info-strip">
@@ -296,6 +258,23 @@
         </button>
 
         <button class="cancel-btn" (click)="showPdfModal.set(false)" style="margin-top: 10px; width: 100%">Cerrar</button>
+      </div>
+    </div>
+  }
+  <!-- Modal QR -->
+  @if (showQrModal()) {
+    <div class="admin-edit-overlay">
+      <div class="admin-card qr-card" style="text-align: center;">
+        <div class="tool-icon" style="font-size: 40px; margin-bottom: 10px;">📲</div>
+        <h3>Tu Menú Digital</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 15px;">Escaneá para ver la carta en vivo</p>
+        
+        <div class="qr-container">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://molienda.katrix.com.ar" alt="QR Menú" style="width: 200px; height: 200px; margin: 0 auto;">
+          <div class="qr-url" style="margin-top: 10px; font-weight: 700; color: var(--secondary);">molienda.katrix.com.ar</div>
+        </div>
+
+        <button class="save-btn" (click)="showQrModal.set(false)" style="margin-top: 20px; width: 100%">Entendido</button>
       </div>
     </div>
   }

@@ -106,65 +106,95 @@
   position: sticky;
   top: 0;
   background: var(--bg); 
-  z-index: 10;
+  z-index: 100;
   border-bottom: 1px solid var(--border);
-  padding: 1rem 0;
+  padding: 0.75rem 0;
   margin: 0 -1.5rem;
-  overflow: hidden; /* Contain the scrollable flexbox */
+  overflow: hidden;
 }
 
 .cats { 
   display: flex; 
-  gap: 8px; 
-  overflow-x: scroll; 
+  gap: 12px; 
+  overflow-x: auto; 
   overflow-y: hidden;
-  padding: 8px 1.5rem 15px; 
+  padding: 4px 1.5rem 12px; 
   margin: 0;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  cursor: grab;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
 }
 
-.cats:active {
-  cursor: grabbing;
-}
 
 .cats::-webkit-scrollbar {
-  display: none; /* Keep it clean */
-}
-
-.cats::-webkit-scrollbar { display: none; }
-
-.cats::after {
-  content: '';
-  padding-right: 1.5rem; 
+  display: none;
 }
 
 .cat-btn { 
   white-space: nowrap; 
-  padding: 10px 20px; 
-  border-radius: 100px; 
+  padding: 8px 20px; 
+  border-radius: 50px; 
   border: 1px solid var(--border); 
   background: var(--surface); 
-  font-size: 14.5px; 
+  font-size: 14px; 
   font-family: var(--font-accent); 
   color: var(--muted); 
   cursor: pointer; 
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); 
   font-weight: 600; 
+  scroll-snap-align: start;
 }
 
 .cat-btn:hover {
-  border-color: var(--gold);
-  color: var(--dark);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
 }
 
-.cat-btn.active { 
-  background: var(--primary); 
-  color: #fff; 
-  border-color: var(--primary); 
-  box-shadow: 0 4px 10px rgba(142, 84, 148, 0.3);
-  transform: translateY(-2px);
+.cat-btn.active, 
+.app .cats .cat-btn.active { 
+  background-color: #8e5494 !important; 
+  background: #8e5494 !important;
+  color: #ffffff !important; 
+  border-color: #8e5494 !important; 
+  box-shadow: 0 8px 20px rgba(142, 84, 148, 0.45) !important;
+  transform: scale(1.05) translateY(-1px) !important;
+  opacity: 1 !important;
+  display: flex !important;
+  visibility: visible !important;
+}
+
+@media(max-width: 600px) { 
+  .promos-grid { 
+    grid-template-columns: 1fr; 
+  }
+  .info-strip-container {
+    padding: 10px;
+    bottom: 10px;
+  }
+  .info-strip {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 14px;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: 16px;
+  }
+  .info-strip span {
+    display: block;
+    text-align: center;
+  }
+}
+
+.tablet-only {
+  display: none;
+}
+
+@media(min-width: 601px) and (max-width: 1024px) {
+  .tablet-only {
+    display: flex;
+  }
 }
 
 /* Content Area */

@@ -56,6 +56,7 @@ export class App implements OnInit {
   showInflationModal = signal<boolean>(false);
   inflationPercentage = signal<number>(0);
   showPdfModal = signal<boolean>(false);
+  showQrModal = signal<boolean>(false);
   isUploading = signal<boolean>(false);
 
   // Computed properties
@@ -136,6 +137,14 @@ export class App implements OnInit {
   setCat(c: string) {
     this.activeCat.set(c);
     this.search.set('');
+    
+    // Auto-scroll carousel to active item
+    setTimeout(() => {
+      const activeBtn = document.querySelector('.cat-btn.active');
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, 50);
   }
 
   doSearch(event: Event) {
