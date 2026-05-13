@@ -11,7 +11,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY backend/package*.json ./backend/
-RUN cd backend && npm ci && npm install express@4.21.2 router@1.3.8
+RUN cd backend && npm ci && npm install express@4.18.2 router@1.3.8 path-to-regexp@6.3.0
 
 COPY backend/ ./backend/
 
