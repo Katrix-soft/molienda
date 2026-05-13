@@ -1,6 +1,7 @@
 import { Component, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 
 interface Item {
   id: number;
@@ -37,6 +38,17 @@ export class App implements OnInit {
   readonly adminToken = signal<string>('');
   loginPassword = '';
   editingItem = signal<Item | null>(null);
+  editingItemDescParts = signal<string[]>([]);
+  editingCategory = signal<string | null>(null);
+  newCategoryName = '';
+  readonly canUseBiometrics = signal<boolean>(window.PublicKeyCredential !== undefined);
+  hasBiometrics = signal<boolean>(false);
+
+  // Notificaciones
+  alertMessage = signal<string | null>(null);
+  alertType = signal<'success' | 'error' | 'info'>('info');
+  confirmMessage = signal<string | null>(null);
+  confirmCallback: (() => void) | null = null;
 
   // Computed properties
   readonly searchMatches = computed(() => {
@@ -72,10 +84,20 @@ export class App implements OnInit {
   ngOnInit() {
     this.checkAdminUrl();
     this.fetchMenu();
+    this.checkBiometrics();
+
+    // Debugging global errors
+    window.onerror = (msg, url, line, col, error) => {
+      this.showAlert(`Error Global: ${msg}`, 'error');
+      return false;
+    };
+    window.onunhandledrejection = (event) => {
+      this.showAlert(`Promesa Fallida: ${event.reason}`, 'error');
+    };
   }
 
   checkAdminUrl() {
-    if (window.location.search.includes('admin=true')) {
+    if (window.location.search.includes('belen=true')) {
       const savedToken = localStorage.getItem('adminToken');
       if (savedToken) {
         this.adminToken.set(savedToken);
@@ -118,6 +140,43 @@ export class App implements OnInit {
     return '$' + p.toLocaleString('es-AR');
   }
 
+  getDescParts(desc?: string): string[] {
+    if (!desc) return [];
+    return desc.split('·').map(s => s.trim()).filter(s => s);
+  }
+
+  async checkBiometrics() {
+    if (!this.canUseBiometrics()) return;
+    try {
+      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+      const res = await fetch(`${host}/api/auth/check`);
+      const data = await res.json();
+      this.hasBiometrics.set(data.hasBiometrics);
+    } catch (e) {
+      console.error("Error checking biometrics", e);
+    }
+  }
+
+  // --- Notificaciones ---
+  showAlert(msg: string, type: 'success' | 'error' | 'info' = 'info') {
+    this.alertType.set(type);
+    this.alertMessage.set(msg);
+    setTimeout(() => this.alertMessage.set(null), 4000);
+  }
+
+  showConfirm(msg: string, callback: () => void) {
+    this.confirmMessage.set(msg);
+    this.confirmCallback = callback;
+  }
+
+  onConfirm(yes: boolean) {
+    if (yes && this.confirmCallback) {
+      this.confirmCallback();
+    }
+    this.confirmMessage.set(null);
+    this.confirmCallback = null;
+  }
+
   // --- Admin Funciones ---
   
   async login() {
@@ -134,32 +193,85 @@ export class App implements OnInit {
         this.isAdmin.set(true);
         localStorage.setItem('adminToken', data.token);
         this.loginPassword = '';
+        this.search.set(''); // Limpiar la busqueda ("belen") para ver el menu
+        
+        // APB: Abrir directamente el primer producto para editar
+        const cats = this.cats();
+        if (cats.length > 0) {
+           const firstCatItems = this.menuData()[cats[0]].items;
+           if (firstCatItems.length > 0) {
+               this.startEdit(firstCatItems[0]);
+           }
+        }
+
+        // APB: Preguntar por biometría si no está configurada
+        if (this.canUseBiometrics() && !this.hasBiometrics()) {
+          setTimeout(() => {
+            this.showConfirm('¿Querés activar el acceso con huella/FaceID para entrar más rápido la próxima vez?', () => {
+              this.registerBiometrics();
+            });
+          }, 1000);
+        }
       } else {
-        alert("Contraseña incorrecta");
+        this.showAlert("Contraseña incorrecta", "error");
       }
     } catch (e) {
       console.error(e);
+      this.showAlert("Error en el servidor", "error");
     }
   }
 
   startEdit(item: Item) {
     if (!this.isAdmin()) return;
     this.editingItem.set({ ...item });
+    if (item.desc) {
+      this.editingItemDescParts.set(item.desc.split('·').map(s => s.trim()).filter(s => s));
+    } else {
+      this.editingItemDescParts.set(['']); // Start with one empty part
+    }
+  }
+
+  addDescPart() {
+    this.editingItemDescParts.update(p => [...p, '']);
+  }
+
+  updateDescPart(index: number, event: Event) {
+    const val = (event.target as HTMLInputElement).value;
+    this.editingItemDescParts.update(p => {
+      const newP = [...p];
+      newP[index] = val;
+      return newP;
+    });
+  }
+
+  removeDescPart(index: number) {
+    this.editingItemDescParts.update(p => {
+      const newP = [...p];
+      newP.splice(index, 1);
+      return newP;
+    });
   }
 
   cancelEdit() {
     this.editingItem.set(null);
+    this.editingItemDescParts.set([]);
   }
 
   async saveEdit() {
     const item = this.editingItem();
     if (!item) return;
 
+    const parts = this.editingItemDescParts().map(p => p.trim()).filter(p => p);
+    item.desc = parts.length > 0 ? parts.join(' · ') : undefined;
+
     try {
       const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
       const res = await fetch(`${host}/api/menu/item/${item.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.adminToken()}`
+        },
         body: JSON.stringify({
           name: item.name,
           price: item.price,
@@ -174,7 +286,118 @@ export class App implements OnInit {
       }
     } catch (e) {
       console.error("Error al guardar", e);
-      alert("Hubo un error al guardar");
+      this.showAlert("Hubo un error al guardar", "error");
+    }
+  }
+
+  startEditCategory(cat: string) {
+    if (!this.isAdmin()) return;
+    this.editingCategory.set(cat);
+    this.newCategoryName = cat;
+  }
+
+  cancelEditCategory() {
+    this.editingCategory.set(null);
+  }
+
+  async saveEditCategory() {
+    const oldName = this.editingCategory();
+    if (!oldName || !this.newCategoryName.trim()) return;
+
+    try {
+      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+      const res = await fetch(`${host}/api/menu/category`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.adminToken()}`
+        },
+        body: JSON.stringify({
+          oldName: oldName,
+          newName: this.newCategoryName.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await this.fetchMenu();
+        this.editingCategory.set(null);
+        if (this.activeCat() === oldName) {
+           this.activeCat.set(this.newCategoryName.trim());
+        }
+      }
+    } catch (e) {
+      console.error("Error al guardar categoría", e);
+      this.showAlert("Hubo un error al guardar la categoría", "error");
+    }
+  }
+
+  // --- Biometric Authentication ---
+
+  async registerBiometrics() {
+    try {
+      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+      const optionsRes = await fetch(`${host}/api/auth/register-options`, {
+        headers: { 'Authorization': `Bearer ${this.adminToken()}` }
+      });
+      const options = await optionsRes.json();
+      if (options.error) {
+        throw new Error(options.error);
+      }
+
+      const regResp = await startRegistration({ optionsJSON: options });
+
+      const verifyRes = await fetch(`${host}/api/auth/verify-registration`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.adminToken()}`
+        },
+        body: JSON.stringify(regResp),
+      });
+
+      const verification = await verifyRes.json();
+      if (verification.success) {
+        this.hasBiometrics.set(true);
+        this.showAlert('¡Biometría registrada con éxito!', 'success');
+      } else {
+        this.showAlert('Error al verificar biometría', 'error');
+      }
+    } catch (e: any) {
+      console.error(e);
+      this.showAlert('Error: ' + e.message, 'error');
+    }
+  }
+
+  async biometricLogin() {
+    try {
+      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+      const optionsRes = await fetch(`${host}/api/auth/login-options`);
+      const options = await optionsRes.json();
+      if (options.error) {
+        throw new Error(options.error);
+      }
+
+      const authResp = await startAuthentication({ optionsJSON: options });
+
+      const verifyRes = await fetch(`${host}/api/auth/verify-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authResp),
+      });
+
+      const verification = await verifyRes.json();
+      if (verification.success) {
+        this.adminToken.set(verification.token);
+        this.isAdmin.set(true);
+        localStorage.setItem('adminToken', verification.token);
+        this.search.set('');
+        this.showAlert('¡Acceso biométrico concedido!', 'success');
+      } else {
+        this.showAlert('Error de autenticación biométrica', 'error');
+      }
+    } catch (e: any) {
+      console.error(e);
+      this.showAlert('Error: ' + (e.message || 'Fallo desconocido'), 'error');
     }
   }
 }

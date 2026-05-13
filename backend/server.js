@@ -2,10 +2,44 @@ const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} = require('@simplewebauthn/server');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'petit-patisserie-super-secret-key-2026';
+// Hash for password 'molienda123'
+const ADMIN_HASH = bcrypt.hashSync('molienda123', 10);
+
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return res.status(403).json({ error: 'No token provided' });
+  
+  const token = authHeader.split(' ')[1];
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(401).json({ error: 'Unauthorized' });
+    next();
+  });
+};
 
 const app = express();
+app.use(helmet({ contentSecurityPolicy: false })); // CSP off para no romper Angular
 app.use(cors());
 app.use(express.json());
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, 
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', apiLimiter);
 
 // Servir la aplicación de Angular construida
 app.use(express.static(path.join(__dirname, '../dist/molienda/browser')));
@@ -22,7 +56,20 @@ db.serialize(() => {
     desc TEXT,
     tag TEXT
   )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS authenticators (
+    id TEXT PRIMARY KEY,
+    publicKey BLOB,
+    counter INTEGER,
+    transports TEXT
+  )`);
 });
+
+// In-memory store for challenges (local use only)
+const challenges = new Map();
+const RP_ID = 'localhost';
+const RP_NAME = 'Petit Patisserie Admin';
+const ORIGIN = `http://${RP_ID}:3000`;
 
 const INITIAL_DATA = {
   "Promos Dulces": {
@@ -213,8 +260,8 @@ app.get('/api/menu', (req, res) => {
   });
 });
 
-// Update an item
-app.post('/api/menu/item/:id', (req, res) => {
+// Update an item (Protected)
+app.post('/api/menu/item/:id', verifyToken, (req, res) => {
   const { name, price, desc } = req.body;
   db.run(
     "UPDATE items SET name = ?, price = ?, desc = ? WHERE id = ?",
@@ -226,21 +273,175 @@ app.post('/api/menu/item/:id', (req, res) => {
   );
 });
 
-// Simple Login
+// Update a category (Protected)
+app.post('/api/menu/category', verifyToken, (req, res) => {
+  const { oldName, newName } = req.body;
+  if (!oldName || !newName) return res.status(400).json({ error: 'Missing names' });
+  db.run(
+    "UPDATE items SET category = ? WHERE category = ?",
+    [newName, oldName],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, changes: this.changes });
+    }
+  );
+});
+
+// Secure Login
 app.post('/api/login', (req, res) => {
-  if (req.body.password === 'molienda123') {
-    res.json({ success: true, token: 'admin-token' });
+  const password = req.body.password || '';
+  if (bcrypt.compareSync(password, ADMIN_HASH)) {
+    const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ success: true, token });
   } else {
-    res.status(401).json({ success: false });
+    res.status(401).json({ success: false, error: 'Invalid password' });
   }
 });
 
-// Redirigir cualquier otra ruta no-API al index.html de Angular (para soportar recargas y routing)
-app.get('*', (req, res) => {
+// Check if biometrics are configured
+app.get('/api/auth/check', (req, res) => {
+  db.get('SELECT COUNT(*) as count FROM authenticators', (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ hasBiometrics: row.count > 0 });
+  });
+});
+
+// --- WebAuthn Endpoints ---
+
+// 1. Registration Options (Protected: needs password login first to setup)
+app.get('/api/auth/register-options', verifyToken, async (req, res) => {
+  const options = await generateRegistrationOptions({
+    rpName: RP_NAME,
+    rpID: RP_ID,
+    userID: Buffer.from('admin'),
+    userName: 'admin@petitpatisserie.com',
+    attestationType: 'none',
+    authenticatorSelection: {
+      residentKey: 'required',
+      userVerification: 'preferred',
+    },
+  });
+
+  challenges.set('admin-reg', options.challenge);
+  res.json(options);
+});
+
+// 2. Verify Registration
+app.post('/api/auth/verify-registration', verifyToken, async (req, res) => {
+  const body = req.body;
+  if (!body) return res.status(400).json({ error: 'Missing request body' });
+  
+  const expectedChallenge = challenges.get('admin-reg');
+
+  try {
+    const verification = await verifyRegistrationResponse({
+      response: body,
+      expectedChallenge,
+      expectedOrigin: ORIGIN,
+      expectedRPID: RP_ID,
+      requireUserVerification: false,
+    });
+
+    if (verification.verified) {
+      const { registrationInfo } = verification;
+      const { credentialPublicKey, credentialID, counter } = registrationInfo;
+
+      db.run(
+        'INSERT INTO authenticators (id, publicKey, counter, transports) VALUES (?, ?, ?, ?)',
+        [
+          Buffer.from(credentialID).toString('base64'),
+          Buffer.from(credentialPublicKey),
+          counter,
+          JSON.stringify(body.response.transports || []),
+        ]
+      );
+
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Verification failed' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    challenges.delete('admin-reg');
+  }
+});
+
+// 3. Login Options
+app.get('/api/auth/login-options', async (req, res) => {
+  const options = await generateAuthenticationOptions({
+    rpID: RP_ID,
+    userVerification: 'preferred',
+  });
+
+  challenges.set('admin-login', options.challenge);
+  res.json(options);
+});
+
+// 4. Verify Login
+app.post('/api/auth/verify-login', async (req, res) => {
+  const body = req.body;
+  if (!body || !body.id) return res.status(400).json({ error: 'Missing credential ID' });
+  
+  const expectedChallenge = challenges.get('admin-login');
+
+  // Find authenticator by ID
+  db.get('SELECT * FROM authenticators WHERE id = ?', [body.id], async (err, authenticator) => {
+    if (err || !authenticator) {
+      return res.status(400).json({ error: 'Authenticator not found' });
+    }
+
+    try {
+      const verification = await verifyAuthenticationResponse({
+        response: body,
+        expectedChallenge,
+        expectedOrigin: ORIGIN,
+        expectedRPID: RP_ID,
+        authenticator: {
+          credentialID: Buffer.from(authenticator.id, 'base64'),
+          credentialPublicKey: authenticator.publicKey,
+          counter: authenticator.counter,
+        },
+        requireUserVerification: false,
+      });
+
+      if (verification.verified) {
+        // Update counter
+        db.run('UPDATE authenticators SET counter = ? WHERE id = ?', [
+          verification.authenticationInfo.newCounter,
+          authenticator.id,
+        ]);
+
+        const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ success: true, token });
+      } else {
+        res.status(400).json({ error: 'Login verification failed' });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      challenges.delete('admin-login');
+    }
+  });
+});
+
+// Manejo de rutas no encontradas (404)
+app.use((req, res) => {
   if (req.url.startsWith('/api')) {
-    return res.status(404).json({ error: 'API route not found' });
+    return res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
   }
   res.sendFile(path.join(__dirname, '../dist/molienda/browser/index.html'));
+});
+
+// Manejador de errores global para evitar respuestas HTML en errores 500
+app.use((err, req, res, next) => {
+  console.error('SERVER ERROR:', err);
+  res.status(500).json({ 
+    error: 'Internal Server Error',
+    message: err.message
+  });
 });
 
 app.listen(3000, () => {

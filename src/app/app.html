@@ -1,12 +1,27 @@
 <div class="app">
+  <!-- Custom Alert -->
+  @if (alertMessage()) {
+    <div class="custom-alert-overlay" [class.error]="alertType() === 'error'" [class.success]="alertType() === 'success'">
+      <div class="custom-alert">
+        {{alertMessage()}}
+      </div>
+    </div>
+  }
+
   <!-- Pantalla de Login Admin -->
-  @if (!isAdmin() && search() === 'admin') {
-    <!-- Se activa tipeando 'admin' en el buscador o via URL -->
+  @if (!isAdmin() && search() === 'belen') {
+    <!-- Se activa tipeando 'belen' en el buscador o via URL -->
     <div class="admin-login-overlay">
       <div class="admin-card">
         <h3>Acceso Administrativo</h3>
         <input type="password" [(ngModel)]="loginPassword" placeholder="Contraseña">
         <button (click)="login()">Ingresar</button>
+        @if (canUseBiometrics() && hasBiometrics()) {
+          <div class="divider-or">o</div>
+          <button class="biometric-btn" (click)="biometricLogin()">
+            <span>👤</span> Ingresar con Biometría
+          </button>
+        }
       </div>
     </div>
   }
@@ -22,8 +37,16 @@
         <label>Precio ($)</label>
         <input type="number" [(ngModel)]="editingItem()!.price">
         
-        <label>Descripción</label>
-        <textarea [(ngModel)]="editingItem()!.desc"></textarea>
+        <label>Descripción (ítems separados)</label>
+        <div class="desc-parts-container">
+          @for (part of editingItemDescParts(); track $index) {
+            <div class="desc-part-row">
+              <input type="text" [value]="part" (input)="updateDescPart($index, $event)" placeholder="Ej: Café o té">
+              <button class="remove-part-btn" (click)="removeDescPart($index)">✕</button>
+            </div>
+          }
+          <button class="add-part-btn" (click)="addDescPart()">+ Agregar ítem</button>
+        </div>
         
         <div class="admin-actions">
           <button class="cancel-btn" (click)="cancelEdit()">Cancelar</button>
@@ -33,11 +56,32 @@
     </div>
   }
 
+  <!-- Modal de Edición de Categoría -->
+  @if (editingCategory()) {
+    <div class="admin-edit-overlay">
+      <div class="admin-card">
+        <h3>Editar Nombre de Categoría</h3>
+        <label>Nuevo Nombre</label>
+        <input type="text" [(ngModel)]="newCategoryName">
+        
+        <div class="admin-actions">
+          <button class="cancel-btn" (click)="cancelEditCategory()">Cancelar</button>
+          <button class="save-btn" (click)="saveEditCategory()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  }
+
   <div class="header">
     <div class="logo"><span>Petit</span> Patisserie</div>
     <div class="tagline">Café · Pastelería · Mendoza</div>
     @if (isAdmin()) {
-      <div class="admin-badge">Modo Edición Activado</div>
+      <div class="admin-badge">
+        Modo Edición Activado
+        @if (canUseBiometrics()) {
+          <button (click)="registerBiometrics()" class="register-bio-btn" title="Configurar huella/FaceID">🔐</button>
+        }
+      </div>
     }
   </div>
 
@@ -46,7 +90,7 @@
       <circle cx="11" cy="11" r="8"></circle>
       <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
     </svg>
-    <input class="search-input" id="search" placeholder="Buscar en la carta... (o escribe 'admin')" [value]="search()" (input)="doSearch($event)" autocomplete="off">
+    <input class="search-input" id="search" placeholder="Buscar en la carta..." [value]="search()" (input)="doSearch($event)" autocomplete="off">
   </div>
 
   @if (loading()) {
@@ -58,7 +102,10 @@
     <div class="cats-wrapper">
       <div class="cats" id="cats">
         @for (cat of cats(); track cat) {
-          <button class="cat-btn" [class.active]="cat === activeCat() && !search()" (click)="setCat(cat)">{{cat}}</button>
+          <button class="cat-btn" [class.active]="cat === activeCat() && !search()" (click)="setCat(cat)">
+            {{cat}}
+            @if (isAdmin()) { <span class="cat-edit-icon" style="margin-left: 5px; cursor: pointer" (click)="startEditCategory(cat); $event.stopPropagation()">✏️</span> }
+          </button>
         }
       </div>
     </div>
@@ -82,7 +129,11 @@
                       <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
                     </div>
                     @if (item.desc) {
-                      <div class="promo-includes">{{item.desc}}</div>
+                      <div class="promo-includes">
+                        @for (part of getDescParts(item.desc); track part) {
+                          <span class="desc-chip">{{part}}</span>
+                        }
+                      </div>
                     }
                   </div>
                 }
@@ -99,7 +150,11 @@
                         @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
                       </div>
                       @if (item.desc) {
-                        <div class="item-desc">{{item.desc}}</div>
+                        <div class="item-desc">
+                          @for (part of getDescParts(item.desc); track part) {
+                            <span class="desc-chip">{{part}}</span>
+                          }
+                        </div>
                       }
                     </div>
                     <div class="item-price" [class.free]="!item.price">
@@ -136,7 +191,11 @@
                   <div class="promo-price">{{fmtPrice(item.price, item.desc)}}</div>
                 </div>
                 @if (item.desc) {
-                  <div class="promo-includes">{{item.desc}}</div>
+                  <div class="promo-includes">
+                    @for (part of getDescParts(item.desc); track part) {
+                      <span class="desc-chip">{{part}}</span>
+                    }
+                  </div>
                 }
               </div>
             }
@@ -153,7 +212,11 @@
                     @if (item.tag === 'vegan') { <span class="badge badge-vegan">Vegano</span> }
                   </div>
                   @if (item.desc) {
-                    <div class="item-desc">{{item.desc}}</div>
+                    <div class="item-desc">
+                      @for (part of getDescParts(item.desc); track part) {
+                        <span class="desc-chip">{{part}}</span>
+                      }
+                    </div>
                   }
                 </div>
                 <div class="item-price" [class.free]="!item.price">
@@ -178,4 +241,19 @@
       </a>
     </div>
   </div>
+
+  <!-- Custom Confirm (Always on top) -->
+  @if (confirmMessage()) {
+    <div class="admin-edit-overlay confirm-overlay">
+      <div class="admin-card" style="text-align: center;">
+        <div class="icon-circle">🔐</div>
+        <h3>Configurar Acceso Rápido</h3>
+        <p style="margin: 15px 0; color: var(--muted); line-height: 1.5;">{{confirmMessage()}}</p>
+        <div class="admin-actions">
+          <button class="cancel-btn" (click)="onConfirm(false)">Ahora no</button>
+          <button class="save-btn" (click)="onConfirm(true)">Sí, activar</button>
+        </div>
+      </div>
+    </div>
+  }
 </div>
