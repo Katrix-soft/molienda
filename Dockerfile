@@ -10,19 +10,18 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
-# Install backend dependencies
 COPY backend/package*.json ./backend/
-RUN cd backend && npm ci
+RUN cd backend && npm install express@4.18.2 path-to-regexp@6.3.0
 
-# Copy backend source code
 COPY backend/ ./backend/
 
-# Copy the built Angular application from the builder stage
+# Borramos node_modules que vino del repo y reinstalamos limpio
+RUN rm -rf /app/backend/node_modules && \
+    cd backend && npm install express@4.18.2 path-to-regexp@6.3.0
+
 COPY --from=builder /app/dist/molienda/browser ./dist/molienda/browser
 
-# Expose port 3000 (Backend handles both API and Frontend)
 EXPOSE 3000
 
-# Start the Node.js server
 WORKDIR /app/backend
 CMD ["node", "server.js"]
