@@ -10,9 +10,9 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
-# Install backend dependencies con path-to-regexp fijado
+# Install backend dependencies con router fijado
 COPY backend/package*.json ./backend/
-RUN cd backend && npm ci && npm install path-to-regexp@6.3.0
+RUN cd backend && npm ci && npm install router@1.3.8
 
 # Copy backend source code
 COPY backend/ ./backend/
