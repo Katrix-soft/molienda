@@ -10,14 +10,11 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
-# Install backend dependencies con router fijado
 COPY backend/package*.json ./backend/
-RUN cd backend && npm ci && npm install router@1.3.8
+RUN cd backend && npm ci && npm install express@4.21.2 router@1.3.8
 
-# Copy backend source code
 COPY backend/ ./backend/
 
-# Copy the built Angular application from the builder stage
 COPY --from=builder /app/dist/molienda/browser ./dist/molienda/browser
 
 EXPOSE 3000
