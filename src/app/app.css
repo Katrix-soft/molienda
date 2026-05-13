@@ -742,6 +742,23 @@
 
 
 /* Custom Alerts & Premium Modals */
+:root {
+  --primary: #8e5494; /* Pantone 258 C - Purple */
+  --secondary: #4e3629; /* Pantone 476 C - Brown */
+  --accent: #8fe3d4; /* Pantone 332 C - Mint */
+  --bg: #f1e5d7; /* Pantone 9184 C - Cream */
+  --surface: #ffffff;
+  --text: #2d1b15;
+  --muted: #6b5a54;
+  --border: #e2d5c8;
+  --gold: #4e3629; 
+  --gold-light: #f3c4cc; /* Pantone 699 C - Pink as light highlight */
+  --card: #ffffff;
+  --shadow-sm: 0 2px 4px rgba(78, 54, 41, 0.05);
+  --shadow-md: 0 4px 12px rgba(78, 54, 41, 0.1);
+  --shadow-lg: 0 12px 24px rgba(78, 54, 41, 0.15);
+}
+
 .custom-alert-overlay {
   position: fixed;
   top: 30px;
