@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const pdf = require('pdf-parse');
 const {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -43,6 +45,7 @@ app.use('/api/', apiLimiter);
 
 // Servir la aplicación de Angular construida
 app.use(express.static(path.join(__dirname, '../dist/molienda/browser')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 const db = new sqlite3.Database(path.join(__dirname, 'database.sqlite'));
 
@@ -67,9 +70,16 @@ db.serialize(() => {
 
 // In-memory store for challenges (local use only)
 const challenges = new Map();
-const RP_ID = 'localhost';
-const RP_NAME = 'Petit Patisserie Admin';
+const RP_NAME = 'Petit Patisserie';
+const RP_ID = 'localhost'; // Change to molienda.katrix.com.ar in production
 const ORIGIN = `http://${RP_ID}:3000`;
+
+// Multer config for PDF
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'public/'),
+  filename: (req, file, cb) => cb(null, 'menu_completo.pdf')
+});
+const upload = multer({ storage });
 
 const INITIAL_DATA = {
   "Promos Dulces": {
@@ -262,15 +272,82 @@ app.get('/api/menu', (req, res) => {
 
 // Update an item (Protected)
 app.post('/api/menu/item/:id', verifyToken, (req, res) => {
-  const { name, price, desc } = req.body;
-  db.run(
-    "UPDATE items SET name = ?, price = ?, desc = ? WHERE id = ?",
-    [name, price, desc, req.params.id],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, changes: this.changes });
+  const { name, price, desc, tag } = req.body;
+  db.run('UPDATE items SET name = ?, price = ?, desc = ?, tag = ? WHERE id = ?', [name, price, desc, tag, req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// Actualizar todos los precios (Inflación)
+app.post('/api/menu/inflation', verifyToken, (req, res) => {
+  const { percentage } = req.body;
+  if (percentage === undefined || isNaN(percentage)) return res.status(400).json({ error: 'Invalid percentage' });
+
+  const multiplier = 1 + (percentage / 100);
+  db.run('UPDATE items SET price = CAST(price * ? AS INTEGER)', [multiplier], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// Cargar Menú PDF y procesar inteligentemente
+app.post('/api/admin/upload-pdf', verifyToken, upload.single('pdf'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  try {
+    const dataBuffer = req.file.path ? require('fs').readFileSync(req.file.path) : req.file.buffer;
+    const pdfData = await pdf(dataBuffer);
+    const text = pdfData.text;
+
+    // Lógica APB: Extraer productos y precios del texto del PDF
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+    let currentCategory = 'Importados';
+    const extractedItems = [];
+
+    for (const line of lines) {
+      // Heurística de Categoría: línea corta en mayúsculas sin números
+      if (line.length < 25 && line === line.toUpperCase() && !/\d/.test(line)) {
+        currentCategory = line;
+        continue;
+      }
+
+      // Heurística de Producto: busca algo que termine en un número (precio)
+      const priceMatch = line.match(/(.+?)\s*[:.-]*\s*\$?\s*(\d+[,.]?\d*)\s*$/);
+      if (priceMatch) {
+        const name = priceMatch[1].trim();
+        const priceStr = priceMatch[2].replace(/[^0-9]/g, '');
+        const price = parseInt(priceStr);
+        if (!isNaN(price) && price > 0) {
+          extractedItems.push({ name, price, category: currentCategory });
+        }
+      }
     }
-  );
+
+    if (extractedItems.length === 0) {
+      return res.status(400).json({ error: 'No pudimos extraer productos del PDF. Verificá el formato.' });
+    }
+
+    // REEMPLAZAR TODO EL SISTEMA (Borrar y reinsertar)
+    db.serialize(() => {
+      db.run('DELETE FROM items');
+      const stmt = db.prepare('INSERT INTO items (name, price, category, desc) VALUES (?, ?, ?, ?)');
+      for (const item of extractedItems) {
+        stmt.run(item.name, item.price, item.category, '');
+      }
+      stmt.finalize();
+    });
+
+    res.json({ 
+      success: true, 
+      count: extractedItems.length,
+      message: `Se importaron ${extractedItems.length} productos y se reemplazó el menú anterior.`
+    });
+
+  } catch (err) {
+    console.error('PDF Process Error:', err);
+    res.status(500).json({ error: 'Error procesando el PDF: ' + err.message });
+  }
 });
 
 // Update a category (Protected)

@@ -85,6 +85,25 @@
     }
   </div>
 
+  @if (isAdmin()) {
+    <div class="admin-tools">
+      <div class="tool-card" (click)="showInflationModal.set(true)">
+        <div class="tool-icon">📈</div>
+        <div class="tool-info">
+          <span class="tool-title">Inflación</span>
+          <span class="tool-desc">Ajustar precios %</span>
+        </div>
+      </div>
+      <div class="tool-card" (click)="showPdfModal.set(true)">
+        <div class="tool-icon">📄</div>
+        <div class="tool-info">
+          <span class="tool-title">Menú PDF</span>
+          <span class="tool-desc">Subir carta</span>
+        </div>
+      </div>
+    </div>
+  }
+
   <div class="search-wrap">
     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="11" cy="11" r="8"></circle>
@@ -242,16 +261,55 @@
     </div>
   </div>
 
+  <!-- Modal Ajuste Inflación -->
+  @if (showInflationModal()) {
+    <div class="admin-edit-overlay">
+      <div class="admin-card">
+        <h3>Ajuste por Inflación</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 10px;">Incrementar todos los precios del menú automáticamente.</p>
+        
+        <label>Porcentaje de aumento (%)</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="number" [(ngModel)]="inflationPercentage" style="flex: 1; font-size: 24px; text-align: center;" placeholder="0">
+          <span style="font-size: 24px; font-weight: 600; color: var(--gold);">%</span>
+        </div>
+
+        <div class="admin-actions">
+          <button class="cancel-btn" (click)="showInflationModal.set(false)">Cancelar</button>
+          <button class="save-btn" (click)="applyInflation()">Aplicar a todo</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal Carga PDF -->
+  @if (showPdfModal()) {
+    <div class="admin-edit-overlay">
+      <div class="admin-card" style="text-align: center;">
+        <div class="tool-icon" style="font-size: 48px; margin-bottom: 15px;">📄</div>
+        <h3>Cargar Carta PDF</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">Subí el archivo PDF de tu carta completa para que los clientes puedan descargarla.</p>
+        
+        <input type="file" (change)="onPdfUpload($event)" accept=".pdf" #pdfInput style="display: none">
+        <button class="save-btn" (click)="pdfInput.click()" [disabled]="isUploading()" style="width: 100%">
+          {{ isUploading() ? 'Subiendo...' : 'Seleccionar Archivo PDF' }}
+        </button>
+
+        <button class="cancel-btn" (click)="showPdfModal.set(false)" style="margin-top: 10px; width: 100%">Cerrar</button>
+      </div>
+    </div>
+  }
+
   <!-- Custom Confirm (Always on top) -->
   @if (confirmMessage()) {
     <div class="admin-edit-overlay confirm-overlay">
       <div class="admin-card" style="text-align: center;">
-        <div class="icon-circle">🔐</div>
-        <h3>Configurar Acceso Rápido</h3>
+        <div class="icon-circle">{{confirmIcon()}}</div>
+        <h3>{{confirmTitle()}}</h3>
         <p style="margin: 15px 0; color: var(--muted); line-height: 1.5;">{{confirmMessage()}}</p>
         <div class="admin-actions">
           <button class="cancel-btn" (click)="onConfirm(false)">Ahora no</button>
-          <button class="save-btn" (click)="onConfirm(true)">Sí, activar</button>
+          <button class="save-btn" (click)="onConfirm(true)">Sí, proceder</button>
         </div>
       </div>
     </div>

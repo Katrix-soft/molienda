@@ -680,6 +680,67 @@
   transform: scale(1.1);
 }
 
+/* Admin Tool Cards */
+.admin-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin: 20px 1rem;
+  padding: 15px;
+  background: var(--gold-light);
+  border-radius: 20px;
+  border: 2px solid var(--gold);
+  z-index: 100;
+  position: relative;
+}
+
+.tool-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.tool-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--gold);
+}
+
+.tool-icon {
+  font-size: 24px;
+  background: var(--gold-light);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.tool-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--dark);
+}
+
+.tool-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+
 /* Custom Alerts & Premium Modals */
 .custom-alert-overlay {
   position: fixed;

@@ -48,7 +48,15 @@ export class App implements OnInit {
   alertMessage = signal<string | null>(null);
   alertType = signal<'success' | 'error' | 'info'>('info');
   confirmMessage = signal<string | null>(null);
+  confirmTitle = signal<string>('Confirmación');
+  confirmIcon = signal<string>('❓');
   confirmCallback: (() => void) | null = null;
+
+  // Herramientas Admin
+  showInflationModal = signal<boolean>(false);
+  inflationPercentage = signal<number>(0);
+  showPdfModal = signal<boolean>(false);
+  isUploading = signal<boolean>(false);
 
   // Computed properties
   readonly searchMatches = computed(() => {
@@ -164,8 +172,10 @@ export class App implements OnInit {
     setTimeout(() => this.alertMessage.set(null), 4000);
   }
 
-  showConfirm(msg: string, callback: () => void) {
+  showConfirm(msg: string, callback: () => void, title = 'Confirmación', icon = '❓') {
     this.confirmMessage.set(msg);
+    this.confirmTitle.set(title);
+    this.confirmIcon.set(icon);
     this.confirmCallback = callback;
   }
 
@@ -207,9 +217,12 @@ export class App implements OnInit {
         // APB: Preguntar por biometría si no está configurada
         if (this.canUseBiometrics() && !this.hasBiometrics()) {
           setTimeout(() => {
-            this.showConfirm('¿Querés activar el acceso con huella/FaceID para entrar más rápido la próxima vez?', () => {
-              this.registerBiometrics();
-            });
+            this.showConfirm(
+              '¿Querés activar el acceso con huella/FaceID para entrar más rápido la próxima vez?', 
+              () => this.registerBiometrics(),
+              'Acceso Rápido',
+              '🔐'
+            );
           }, 1000);
         }
       } else {
@@ -328,6 +341,69 @@ export class App implements OnInit {
     } catch (e) {
       console.error("Error al guardar categoría", e);
       this.showAlert("Hubo un error al guardar la categoría", "error");
+    }
+  }
+
+  async applyInflation() {
+    const pct = this.inflationPercentage();
+    if (pct === 0) return;
+
+    this.showConfirm(
+      `¿Estás seguro de aumentar TODOS los precios un ${pct}%? Esta acción no se puede deshacer.`, 
+      async () => {
+        try {
+          const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+          const res = await fetch(`${host}/api/menu/inflation`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.adminToken()}`
+            },
+            body: JSON.stringify({ percentage: pct })
+          });
+          const data = await res.json();
+          if (data.success) {
+            await this.fetchMenu();
+            this.showInflationModal.set(false);
+            this.showAlert(`Precios actualizados con éxito (+${pct}%)`, 'success');
+          }
+        } catch (e) {
+          console.error(e);
+          this.showAlert("Error al aplicar inflación", "error");
+        }
+      },
+      'Ajuste de Precios',
+      '📈'
+    );
+  }
+
+  async onPdfUpload(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    try {
+      this.isUploading.set(true);
+      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+      const res = await fetch(`${host}/api/admin/upload-pdf`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.adminToken()}` },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showAlert(data.message || "PDF subido correctamente", "success");
+        this.showPdfModal.set(false);
+        await this.fetchMenu();
+      }
+    } catch (e) {
+      console.error(e);
+      this.showAlert("Error al subir el PDF", "error");
+    } finally {
+      this.isUploading.set(false);
     }
   }
 
