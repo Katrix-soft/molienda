@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const jwt = require('jsonwebtoken');
@@ -35,6 +36,7 @@ app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false })); // CSP off para no romper Angular
 app.use(cors());
 app.use(express.json());
+app.use(compression()); // Comprimir respuestas para mejorar velocidad
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -44,9 +46,14 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Servir la aplicación de Angular construida
-app.use(express.static(path.join(__dirname, '../dist/molienda/browser')));
-app.use('/public', express.static(path.join(__dirname, 'public')));
+// Servir la aplicación de Angular construida con cache
+app.use(express.static(path.join(__dirname, '../dist/molienda/browser'), {
+  maxAge: '1d',
+  etag: true
+}));
+app.use('/public', express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d'
+}));
 
 const db = new sqlite3.Database(path.join(__dirname, 'database.sqlite'));
 

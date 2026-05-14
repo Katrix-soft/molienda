@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap');
+/* Fonts consolidated in index.html for performance */
 
 * { 
   box-sizing: border-box; 
@@ -28,7 +28,7 @@ body {
   background-color: var(--cream);
   background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, transparent 70%);
   background-attachment: fixed;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Cabin', sans-serif;
   color: var(--text-main);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;

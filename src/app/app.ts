@@ -41,6 +41,7 @@ export class App implements OnInit {
   editingItemDescParts = signal<string[]>([]);
   editingCategory = signal<string | null>(null);
   newCategoryName = '';
+  readonly isEditMode = signal<boolean>(false);
   readonly canUseBiometrics = signal<boolean>(window.PublicKeyCredential !== undefined);
   hasBiometrics = signal<boolean>(false);
 
@@ -232,15 +233,6 @@ export class App implements OnInit {
         this.loginPassword = '';
         this.search.set(''); // Limpiar la busqueda ("belen") para ver el menu
         
-        // APB: Abrir directamente el primer producto para editar
-        const cats = this.cats();
-        if (cats.length > 0) {
-           const firstCatItems = this.menuData()[cats[0]].items;
-           if (firstCatItems.length > 0) {
-               this.startEdit(firstCatItems[0]);
-           }
-        }
-
         // APB: Preguntar por biometría si no está configurada
         if (this.canUseBiometrics() && !this.hasBiometrics()) {
           setTimeout(() => {
@@ -259,6 +251,18 @@ export class App implements OnInit {
       console.error(e);
       this.showAlert("Error en el servidor", "error");
     }
+  }
+
+  logout() {
+    this.adminToken.set('');
+    this.isAdmin.set(false);
+    this.isEditMode.set(false);
+    localStorage.removeItem('adminToken');
+    this.showAlert("Modo edición desactivado", "info");
+  }
+
+  toggleEditMode() {
+    this.isEditMode.update(v => !v);
   }
 
   startEdit(item: Item) {
