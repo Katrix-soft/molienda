@@ -142,10 +142,11 @@
 }
 
 .cats { 
-  display: grid; 
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px 8px; 
-  padding: 0.5rem 1.5rem; 
+  display: flex; 
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 8px; 
+  padding: 12px 1rem; 
   margin: 0;
 }
 
@@ -155,17 +156,18 @@
 }
 
 .cat-btn { 
-  padding: 8px 4px; 
+  padding: 8px 16px; 
   border-radius: 50px; 
   border: 1px solid var(--border); 
-  background: var(--surface); 
-  font-size: 12px; 
-  font-family: var(--font-accent); 
-  color: var(--muted); 
-  cursor: pointer; 
-  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); 
-  font-weight: 600; 
-  text-align: center;
+  background: var(--surface);
+  color: var(--secondary);
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -190,12 +192,25 @@
   visibility: visible !important;
 }
 
+@media(max-width: 768px) {
+  .admin-tools {
+    grid-template-columns: 1fr;
+    margin: 10px 0.5rem;
+    padding: 10px;
+  }
+}
+
 @media(max-width: 600px) { 
   .promos-grid { 
     grid-template-columns: 1fr; 
   }
   .cats {
-    grid-template-columns: repeat(3, 1fr);
+    padding: 10px 0.5rem;
+    gap: 8px 6px;
+  }
+  .cat-btn {
+    padding: 7px 12px;
+    font-size: 12px;
   }
   .info-strip-container {
     padding: 10px;
@@ -217,12 +232,13 @@
 
 @media(max-width: 400px) {
   .cats {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px 4px;
+    gap: 6px 4px;
+    padding: 8px 0.25rem;
   }
   .cat-btn {
     font-size: 11px;
-    padding: 6px 2px;
+    padding: 6px 10px;
+    min-height: auto;
   }
 }
 
