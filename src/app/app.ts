@@ -42,6 +42,7 @@ export class App implements OnInit {
   editingCategory = signal<string | null>(null);
   newCategoryName = '';
   readonly isEditMode = signal<boolean>(false);
+  readonly showCategories = signal<boolean>(false);
   readonly canUseBiometrics = signal<boolean>(window.PublicKeyCredential !== undefined);
   hasBiometrics = signal<boolean>(false);
 
@@ -156,6 +157,7 @@ export class App implements OnInit {
   setCat(c: string) {
     this.activeCat.set(c);
     this.search.set('');
+    this.showCategories.set(false); // Close mobile menu
     
     // Auto-scroll carousel to active item
     setTimeout(() => {
