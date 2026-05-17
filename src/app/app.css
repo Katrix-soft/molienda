@@ -484,7 +484,8 @@
   background: var(--surface); 
   border: 1px solid var(--border); 
   border-radius: 16px; 
-  overflow: hidden; 
+  position: relative;
+  overflow: visible;
   cursor: pointer; 
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   animation: fadeInItem 0.4s ease-out forwards;
@@ -525,6 +526,55 @@
   color: var(--gold-dark); 
   font-weight: 600; 
   margin-left: 1rem;
+  padding-right: 32px;
+}
+
+.global-wa-link {
+  position: fixed;
+  right: 10px;
+  bottom: 16px;
+  background-color: var(--gold);
+  color: var(--surface);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s, background-color 0.3s;
+  z-index: 1000;
+}
+
+.global-wa-link:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-lg);
+  background-color: var(--primary);
+  color: var(--surface);
+}
+
+.global-wa-link svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (min-width: 768px) {
+  .global-wa-link {
+    width: 60px;
+    height: 60px;
+    right: 24px;
+    bottom: 24px;
+  }
+  
+  .global-wa-link svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .promo-price {
+    padding-right: 0;
+  }
 }
 
 .promo-includes { 
