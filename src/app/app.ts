@@ -170,7 +170,17 @@ export class App implements OnInit {
 
   doSearch(event: Event) {
     const input = event.target as HTMLInputElement;
-    this.search.set(input.value);
+    const val = input.value;
+    this.search.set(val);
+
+    if (val.trim().toLowerCase() === 'belen') {
+      if (this.canUseBiometrics() && this.hasBiometrics()) {
+        // Auto-trigger biometric login
+        setTimeout(() => {
+          this.biometricLogin();
+        }, 300);
+      }
+    }
   }
 
   fmtPrice(p: number, desc?: string): string {
@@ -183,16 +193,10 @@ export class App implements OnInit {
     return desc.split('·').map(s => s.trim()).filter(s => s);
   }
 
-  async checkBiometrics() {
+  checkBiometrics() {
     if (!this.canUseBiometrics()) return;
-    try {
-      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
-      const res = await fetch(`${host}/api/auth/check`);
-      const data = await res.json();
-      this.hasBiometrics.set(data.hasBiometrics);
-    } catch (e) {
-      console.error("Error checking biometrics", e);
-    }
+    const localHasBio = localStorage.getItem('hasBiometrics') === 'true';
+    this.hasBiometrics.set(localHasBio);
   }
 
   // --- Notificaciones ---
@@ -467,6 +471,7 @@ export class App implements OnInit {
       const verification = await verifyRes.json();
       if (verification.success) {
         this.hasBiometrics.set(true);
+        localStorage.setItem('hasBiometrics', 'true');
         this.showAlert('¡Biometría registrada con éxito!', 'success');
       } else {
         this.showAlert('Error al verificar biometría', 'error');
@@ -499,6 +504,7 @@ export class App implements OnInit {
         this.adminToken.set(verification.token);
         this.isAdmin.set(true);
         localStorage.setItem('adminToken', verification.token);
+        localStorage.setItem('hasBiometrics', 'true');
         this.search.set('');
         this.showAlert('¡Acceso biométrico concedido!', 'success');
       } else {
