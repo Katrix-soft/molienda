@@ -281,52 +281,6 @@
   }
 }
 
-@media(max-width: 600px) { 
-  .promos-grid { 
-    grid-template-columns: 1fr; 
-  }
-  .cats {
-    padding: 10px 0.5rem;
-    gap: 8px 6px;
-  }
-  .cat-btn {
-    padding: 7px 12px;
-    font-size: 12px;
-  }
-  .info-strip-container {
-    padding: 15px;
-    bottom: 0;
-    justify-content: flex-end; /* Align to right on mobile */
-  }
-  .info-strip {
-    width: 56px;
-    height: 56px;
-    padding: 0;
-    border-radius: 50%;
-    justify-content: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  }
-  .strip-text, .strip-number {
-    display: none;
-  }
-  .strip-icon-wrap svg {
-    width: 30px;
-    height: 30px;
-    margin: 0;
-  }
-}
-
-@media(max-width: 400px) {
-  .cats {
-    gap: 6px 4px;
-    padding: 8px 0.25rem;
-  }
-  .cat-btn {
-    font-size: 11px;
-    padding: 6px 10px;
-    min-height: auto;
-  }
-}
 
 .tablet-only {
   display: none;
@@ -659,18 +613,6 @@
   height: 20px;
 }
 
-@media(max-width: 480px) { 
-  .promos-grid { 
-    grid-template-columns: 1fr; 
-  }
-  .info-strip-container {
-    padding: 1rem;
-  }
-  .info-strip {
-    width: 100%;
-    justify-content: space-between;
-  }
-}
 
 /* Admin CSS */
 .admin-badge {
@@ -1140,3 +1082,65 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* === Layout Responsive Media Queries === */
+@media(max-width: 600px) { 
+  .promos-grid { 
+    grid-template-columns: 1fr; 
+  }
+  .cats {
+    padding: 10px 0.5rem;
+    gap: 8px 6px;
+  }
+  .cat-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+  .info-strip-container {
+    padding: 15px;
+    bottom: 0;
+    justify-content: flex-end;
+  }
+  .info-strip {
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .strip-text, .strip-number {
+    display: none;
+  }
+  .strip-icon-wrap svg {
+    width: 30px;
+    height: 30px;
+    margin: 0;
+  }
+}
+
+@media(max-width: 480px) { 
+  .promos-grid { 
+    grid-template-columns: 1fr; 
+  }
+  .info-strip-container {
+    padding: 1rem;
+  }
+  .info-strip {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media(max-width: 400px) {
+  .cats {
+    gap: 6px 4px;
+    padding: 8px 0.25rem;
+  }
+  .cat-btn {
+    font-size: 11px;
+    padding: 6px 10px;
+    min-height: auto;
+  }
+}
+
