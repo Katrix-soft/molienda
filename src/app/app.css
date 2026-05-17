@@ -1098,3 +1098,45 @@
   background: rgba(0,0,0,0.05) !important;
 }
 
+/* Responsive Admin Tools Fixes */
+@media(max-width: 768px) {
+  .admin-tools {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 15px 0.5rem;
+    padding: 10px;
+  }
+  .tool-card {
+    padding: 10px 8px;
+    gap: 8px;
+    min-width: 0; /* Allows card to shrink within grid track */
+  }
+  .tool-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .tool-info {
+    min-width: 0;
+  }
+  .tool-title {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tool-desc {
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media(max-width: 360px) {
+  .admin-tools {
+    grid-template-columns: 1fr;
+  }
+}
