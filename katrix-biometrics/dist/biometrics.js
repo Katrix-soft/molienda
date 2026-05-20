@@ -85,7 +85,7 @@ class KatrixBiometrics {
                     authenticatorSelection: {
                         authenticatorAttachment: 'platform',
                         userVerification: 'required',
-                        residentKey: 'preferred',
+                        residentKey: 'discouraged',
                     },
                     timeout: this.cfg.timeout,
                 },
