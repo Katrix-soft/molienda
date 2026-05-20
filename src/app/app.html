@@ -78,11 +78,6 @@
     @if (isAdmin()) {
       <div class="admin-badge">
         Modo Edición Activado
-        @if (canUseBiometrics()) {
-          <button (click)="registerBiometrics()" class="register-bio-btn" [class.linked]="hasBiometrics()" [title]="hasBiometrics() ? 'Desvincular huella/FaceID' : 'Configurar huella/FaceID'">
-            {{ hasBiometrics() ? '🔑' : '🔐' }}
-          </button>
-        }
       </div>
     }
   </div>
@@ -115,6 +110,13 @@
         <div class="tool-info">
           <span class="tool-title">Compartir</span>
           <span class="tool-desc">QR del menú</span>
+        </div>
+      </div>
+      <div class="tool-card" (click)="showSettingsModal.set(true)">
+        <div class="tool-icon">⚙️</div>
+        <div class="tool-info">
+          <span class="tool-title">Configuración</span>
+          <span class="tool-desc">Ajustes y seguridad</span>
         </div>
       </div>
       <div class="tool-card tablet-only" (click)="fetchMenu()">
@@ -165,7 +167,7 @@
     </div>
   } @else {
 
-    @if (!editingItem() && !editingCategory() && search() !== 'belen' && !showInflationModal() && !showPdfModal() && !showQrModal()) {
+    @if (!editingItem() && !editingCategory() && search() !== 'belen' && !showInflationModal() && !showPdfModal() && !showQrModal() && !showSettingsModal()) {
       @if (showCategories()) {
         <div class="menu-backdrop" (click)="showCategories.set(false)"></div>
       }
@@ -306,6 +308,41 @@
         <button class="save-btn" (click)="showQrModal.set(false)" style="margin-top: 20px; width: 100%">Entendido</button>
       </div>
     </div>
+
+  <!-- Modal Configuraciones -->
+  @if (showSettingsModal()) {
+    <div class="admin-edit-overlay">
+      <div class="admin-card" style="text-align: center;">
+        <div class="tool-icon" style="font-size: 40px; margin-bottom: 10px;">⚙️</div>
+        <h3>Configuraciones</h3>
+
+        <!-- Sección Biometría -->
+        <div class="settings-section">
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">☝️ Acceso Biométrico</span>
+              <span class="settings-desc">Usá huella o Face ID para ingresar sin contraseña</span>
+            </div>
+            @if (canUseBiometrics()) {
+              <button 
+                class="toggle-btn" 
+                [class.active]="hasBiometrics()" 
+                (click)="registerBiometrics()">
+                {{ hasBiometrics() ? 'ON' : 'OFF' }}
+              </button>
+            } @else {
+              <span class="settings-unavailable">No disponible</span>
+            }
+          </div>
+          @if (hasBiometrics()) {
+            <p class="settings-status success">✓ Biometría activa en este dispositivo</p>
+          }
+        </div>
+
+        <button class="save-btn" (click)="showSettingsModal.set(false)" style="margin-top: 20px; width: 100%">Cerrar</button>
+      </div>
+    </div>
+  }
   }
 
   <!-- Custom Confirm (Always on top) -->

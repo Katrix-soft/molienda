@@ -65,6 +65,7 @@ export class App implements OnInit {
   inflationPercentage = signal<number>(0);
   showPdfModal = signal<boolean>(false);
   showQrModal = signal<boolean>(false);
+  showSettingsModal = signal<boolean>(false);
   hasPdf = signal<boolean>(false);
   isUploading = signal<boolean>(false);
 
@@ -248,18 +249,6 @@ export class App implements OnInit {
         localStorage.setItem('adminToken', data.token);
         this.loginPassword = '';
         this.search.set(''); // Limpiar la busqueda ("belen") para ver el menu
-        
-        // APB: Preguntar por biometría si no está configurada
-        if (this.canUseBiometrics() && !this.hasBiometrics()) {
-          setTimeout(() => {
-            this.showConfirm(
-              '¿Querés activar el acceso con huella/FaceID para entrar más rápido la próxima vez?', 
-              () => this.registerBiometrics(),
-              'Acceso Rápido',
-              '🔐'
-            );
-          }, 1000);
-        }
       } else {
         this.showAlert("Contraseña incorrecta", "error");
       }
