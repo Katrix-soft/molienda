@@ -1,7 +1,7 @@
 import { Component, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import { KatrixBiometrics } from 'katrix-biometrics';
 
 interface Item {
   id: number;
@@ -43,8 +43,14 @@ export class App implements OnInit {
   newCategoryName = '';
   readonly isEditMode = signal<boolean>(false);
   readonly showCategories = signal<boolean>(false);
-  readonly canUseBiometrics = signal<boolean>(window.PublicKeyCredential !== undefined);
+  readonly canUseBiometrics = signal<boolean>(typeof window !== 'undefined' && window.PublicKeyCredential !== undefined);
   hasBiometrics = signal<boolean>(false);
+
+  private biometrics = new KatrixBiometrics({
+    appName: 'Petit Patisserie',
+    userId: 'admin-user',
+    userName: 'admin@petitpatisserie.com',
+  });
 
   // Notificaciones
   alertMessage = signal<string | null>(null);
@@ -195,8 +201,12 @@ export class App implements OnInit {
 
   checkBiometrics() {
     if (!this.canUseBiometrics()) return;
-    const localHasBio = localStorage.getItem('hasBiometrics') === 'true';
-    this.hasBiometrics.set(localHasBio);
+    try {
+      const status = this.biometrics.getStatus();
+      this.hasBiometrics.set(status.linked);
+    } catch (e) {
+      console.error("Error checking biometrics", e);
+    }
   }
 
   // --- Notificaciones ---
@@ -447,34 +457,32 @@ export class App implements OnInit {
   // --- Biometric Authentication ---
 
   async registerBiometrics() {
-    try {
-      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
-      const optionsRes = await fetch(`${host}/api/auth/register-options`, {
-        headers: { 'Authorization': `Bearer ${this.adminToken()}` }
-      });
-      const options = await optionsRes.json();
-      if (options.error) {
-        throw new Error(options.error);
-      }
-
-      const regResp = await startRegistration({ optionsJSON: options });
-
-      const verifyRes = await fetch(`${host}/api/auth/verify-registration`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.adminToken()}`
+    if (this.hasBiometrics()) {
+      this.showConfirm(
+        '¿Querés desvincular el acceso biométrico de este dispositivo?',
+        () => {
+          this.biometrics.unlink();
+          localStorage.removeItem('katrix_bio_token');
+          this.hasBiometrics.set(false);
+          this.showAlert('Biometría desvinculada del dispositivo', 'info');
         },
-        body: JSON.stringify(regResp),
-      });
+        'Desvincular Biometría',
+        '🔓'
+      );
+      return;
+    }
 
-      const verification = await verifyRes.json();
-      if (verification.success) {
+    try {
+      const result = await this.biometrics.register();
+      if (result.success) {
         this.hasBiometrics.set(true);
-        localStorage.setItem('hasBiometrics', 'true');
+        const token = this.adminToken();
+        if (token) {
+          localStorage.setItem('katrix_bio_token', token);
+        }
         this.showAlert('¡Biometría registrada con éxito!', 'success');
       } else {
-        this.showAlert(`Error: ${verification.error || 'Verificación falló'}`, 'error');
+        this.showAlert('Error al registrar biometría: ' + result.error.message, 'error');
       }
     } catch (e: any) {
       console.error(e);
@@ -484,31 +492,20 @@ export class App implements OnInit {
 
   async biometricLogin() {
     try {
-      const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
-      const optionsRes = await fetch(`${host}/api/auth/login-options`);
-      const options = await optionsRes.json();
-      if (options.error) {
-        throw new Error(options.error);
-      }
-
-      const authResp = await startAuthentication({ optionsJSON: options });
-
-      const verifyRes = await fetch(`${host}/api/auth/verify-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authResp),
-      });
-
-      const verification = await verifyRes.json();
-      if (verification.success) {
-        this.adminToken.set(verification.token);
-        this.isAdmin.set(true);
-        localStorage.setItem('adminToken', verification.token);
-        localStorage.setItem('hasBiometrics', 'true');
-        this.search.set('');
-        this.showAlert('¡Acceso biométrico concedido!', 'success');
+      const result = await this.biometrics.authenticate();
+      if (result.success) {
+        const token = localStorage.getItem('katrix_bio_token');
+        if (token) {
+          this.adminToken.set(token);
+          this.isAdmin.set(true);
+          localStorage.setItem('adminToken', token);
+          this.search.set('');
+          this.showAlert('¡Acceso biométrico concedido!', 'success');
+        } else {
+          this.showAlert('No se encontró un token guardado. Iniciá sesión con contraseña primero.', 'error');
+        }
       } else {
-        this.showAlert('Error de autenticación biométrica', 'error');
+        this.showAlert('Error de autenticación biométrica: ' + result.error.message, 'error');
       }
     } catch (e: any) {
       console.error(e);

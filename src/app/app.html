@@ -79,7 +79,9 @@
       <div class="admin-badge">
         Modo Edición Activado
         @if (canUseBiometrics()) {
-          <button (click)="registerBiometrics()" class="register-bio-btn" title="Configurar huella/FaceID">🔐</button>
+          <button (click)="registerBiometrics()" class="register-bio-btn" [class.linked]="hasBiometrics()" [title]="hasBiometrics() ? 'Desvincular huella/FaceID' : 'Configurar huella/FaceID'">
+            {{ hasBiometrics() ? '🔑' : '🔐' }}
+          </button>
         }
       </div>
     }

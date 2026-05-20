@@ -18,6 +18,7 @@
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
     "@simplewebauthn/browser": "^13.3.0",
+    "katrix-biometrics": "file:../../katrix/katrix-biometrics",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
