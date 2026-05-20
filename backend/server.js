@@ -83,8 +83,17 @@ const getRPConfig = (req) => {
   
   // Use browser's Origin header to handle different development ports (4200 vs 3000)
   const originHeader = req.get('origin');
-  const protocol = req.protocol;
-  const origin = originHeader || `${protocol}://${host}`;
+  const protocol = (rpID === 'localhost' || rpID === '127.0.0.1') ? 'http' : 'https';
+  
+  const expectedOrigins = [];
+  expectedOrigins.push(`${protocol}://${host}`);
+  expectedOrigins.push(`https://${rpID}`); // Fallback without port
+  if (originHeader) {
+      expectedOrigins.push(originHeader);
+  }
+  
+  // Unique origins
+  const origin = [...new Set(expectedOrigins)];
   
   return { rpID, origin };
 };
