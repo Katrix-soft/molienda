@@ -177,17 +177,29 @@ export class App implements OnInit {
 
   doSearch(event: Event) {
     const input = event.target as HTMLInputElement;
-    const val = input.value;
-    this.search.set(val);
+    let val = input.value;
 
+    // Security: once 'belen' is typed, lock the input
+    if (this.search() === 'belen' && val.toLowerCase().startsWith('belen') && val.length > 5) {
+      input.value = 'belen';
+      return;
+    }
+
+    // Detect the secret word and lock immediately
     if (val.trim().toLowerCase() === 'belen') {
+      this.search.set('belen');
+      input.value = 'belen';
+      input.blur(); // Remove focus to prevent further typing
+
       if (this.canUseBiometrics() && this.hasBiometrics()) {
-        // Auto-trigger biometric login
         setTimeout(() => {
           this.biometricLogin();
         }, 300);
       }
+      return;
     }
+
+    this.search.set(val);
   }
 
   fmtPrice(p: number, desc?: string): string {
