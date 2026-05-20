@@ -80,8 +80,12 @@ db.serialize(() => {
 const getRPConfig = (req) => {
   const host = req.get('host') || 'localhost';
   const rpID = host.split(':')[0];
+  
+  // Use browser's Origin header to handle different development ports (4200 vs 3000)
+  const originHeader = req.get('origin');
   const protocol = req.protocol;
-  const origin = `${protocol}://${host}`;
+  const origin = originHeader || `${protocol}://${host}`;
+  
   return { rpID, origin };
 };
 
