@@ -464,14 +464,14 @@ app.post('/api/auth/verify-registration', verifyToken, async (req, res) => {
 
     if (verification.verified) {
       const { registrationInfo } = verification;
-      const { credentialPublicKey, credentialID, counter } = registrationInfo;
+      const { credential } = registrationInfo;
 
       db.run(
         'INSERT INTO authenticators (id, publicKey, counter, transports) VALUES (?, ?, ?, ?)',
         [
-          Buffer.from(credentialID).toString('base64'),
-          Buffer.from(credentialPublicKey),
-          counter,
+          credential.id,
+          Buffer.from(credential.publicKey),
+          credential.counter,
           JSON.stringify(body.response.transports || []),
         ]
       );
@@ -520,9 +520,9 @@ app.post('/api/auth/verify-login', async (req, res) => {
         expectedChallenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
-        authenticator: {
-          credentialID: Buffer.from(authenticator.id, 'base64'),
-          credentialPublicKey: Buffer.from(authenticator.publicKey),
+        credential: {
+          id: authenticator.id,
+          publicKey: Buffer.from(authenticator.publicKey),
           counter: authenticator.counter,
         },
         requireUserVerification: false,
