@@ -9,12 +9,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const pdf = require('pdf-parse');
-const {
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse,
-} = require('@simplewebauthn/server');
+// katrix-biometrics handles WebAuthn client-side, no server-side lib needed
 
 const JWT_SECRET = process.env.JWT_SECRET || 'petit-patisserie-super-secret-key-2026';
 // Hash for password 'molienda123'
@@ -68,40 +63,9 @@ db.serialize(() => {
     tag TEXT
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS authenticators (
-    id TEXT PRIMARY KEY,
-    publicKey BLOB,
-    counter INTEGER,
-    transports TEXT
-  )`);
 });
 
-// RP Config helper
-const getRPConfig = (req) => {
-  const host = req.get('host') || 'localhost';
-  const rpID = host.split(':')[0];
-  
-  // Use browser's Origin header to handle different development ports (4200 vs 3000)
-  const originHeader = req.get('origin');
-  const protocol = (rpID === 'localhost' || rpID === '127.0.0.1') ? 'http' : 'https';
-  
-  const expectedOrigins = [];
-  expectedOrigins.push(`${protocol}://${host}`);
-  expectedOrigins.push(`https://${rpID}`); // Fallback without port
-  if (originHeader) {
-      expectedOrigins.push(originHeader);
-  }
-  
-  // Unique origins
-  const origin = [...new Set(expectedOrigins)];
-  
-  return { rpID, origin };
-};
 
-const RP_NAME = 'Petit Patisserie';
-
-// In-memory store for challenges (local use only)
-const challenges = new Map();
 
 const fs = require('fs');
 const publicDir = path.join(__dirname, 'public');
@@ -416,138 +380,8 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-// Check if biometrics are configured
-app.get('/api/auth/check', (req, res) => {
-  db.get('SELECT COUNT(*) as count FROM authenticators', (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ hasBiometrics: row.count > 0 });
-  });
-});
-
-// --- WebAuthn Endpoints ---
-
-// 1. Registration Options (Protected: needs password login first to setup)
-app.get('/api/auth/register-options', verifyToken, async (req, res) => {
-  const { rpID } = getRPConfig(req);
-  const options = await generateRegistrationOptions({
-    rpName: RP_NAME,
-    rpID,
-    userID: Buffer.from('admin'),
-    userName: 'admin@petitpatisserie.com',
-    attestationType: 'none',
-    authenticatorSelection: {
-      residentKey: 'required',
-      userVerification: 'preferred',
-    },
-  });
-
-  challenges.set('admin-reg', options.challenge);
-  res.json(options);
-});
-
-// 2. Verify Registration
-app.post('/api/auth/verify-registration', verifyToken, async (req, res) => {
-  const body = req.body;
-  if (!body) return res.status(400).json({ error: 'Missing request body' });
-  
-  const expectedChallenge = challenges.get('admin-reg');
-
-  try {
-    const { rpID, origin } = getRPConfig(req);
-    const verification = await verifyRegistrationResponse({
-      response: body,
-      expectedChallenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
-      requireUserVerification: false,
-    });
-
-    if (verification.verified) {
-      const { registrationInfo } = verification;
-      const { credential } = registrationInfo;
-
-      db.run(
-        'INSERT INTO authenticators (id, publicKey, counter, transports) VALUES (?, ?, ?, ?)',
-        [
-          credential.id,
-          Buffer.from(credential.publicKey),
-          credential.counter,
-          JSON.stringify(body.response.transports || []),
-        ]
-      );
-
-      res.json({ success: true });
-    } else {
-      res.status(400).json({ error: 'Verification failed' });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
-  } finally {
-    challenges.delete('admin-reg');
-  }
-});
-
-// 3. Login Options
-app.get('/api/auth/login-options', async (req, res) => {
-  const { rpID } = getRPConfig(req);
-  const options = await generateAuthenticationOptions({
-    rpID,
-    userVerification: 'preferred',
-  });
-
-  challenges.set('admin-login', options.challenge);
-  res.json(options);
-});
-
-// 4. Verify Login
-app.post('/api/auth/verify-login', async (req, res) => {
-  const body = req.body;
-  if (!body || !body.id) return res.status(400).json({ error: 'Missing credential ID' });
-  
-  const expectedChallenge = challenges.get('admin-login');
-
-  // Find authenticator by ID
-  db.get('SELECT * FROM authenticators WHERE id = ?', [body.id], async (err, authenticator) => {
-    if (err || !authenticator) {
-      return res.status(400).json({ error: 'Authenticator not found' });
-    }
-
-    try {
-      const { rpID, origin } = getRPConfig(req);
-      const verification = await verifyAuthenticationResponse({
-        response: body,
-        expectedChallenge,
-        expectedOrigin: origin,
-        expectedRPID: rpID,
-        credential: {
-          id: authenticator.id,
-          publicKey: Buffer.from(authenticator.publicKey),
-          counter: authenticator.counter,
-        },
-        requireUserVerification: false,
-      });
-
-      if (verification.verified) {
-        // Update counter
-        db.run('UPDATE authenticators SET counter = ? WHERE id = ?', [
-          verification.authenticationInfo.newCounter,
-          authenticator.id,
-        ]);
-
-        const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ success: true, token });
-      } else {
-        res.status(400).json({ error: 'Login verification failed' });
-      }
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: error.message });
-    } finally {
-      challenges.delete('admin-login');
-    }
-  });
-});
+// Biometric auth is handled entirely client-side by katrix-biometrics
+// No server-side WebAuthn endpoints needed
 
 // Manejo de rutas no encontradas (404)
 app.use((req, res) => {
