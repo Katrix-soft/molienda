@@ -12,4 +12,3 @@ yarn-error.log*
 .dockerignore
 Dockerfile
 backend/Dockerfile
-package-lock.json
