@@ -10,6 +10,7 @@
 node_modules/
 backend/node_modules/
 dist/
+!katrix-biometrics/dist/
 .angular/
 
 # IDEs and editors

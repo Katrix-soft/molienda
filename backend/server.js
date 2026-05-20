@@ -9,7 +9,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const pdf = require('pdf-parse');
-// katrix-biometrics handles WebAuthn client-side, no server-side lib needed
+// katrix-biometrics handles WebAuthn entirely client-side — no server-side lib needed
 
 const JWT_SECRET = process.env.JWT_SECRET || 'petit-patisserie-super-secret-key-2026';
 // Hash for password 'molienda123'
@@ -64,8 +64,6 @@ db.serialize(() => {
   )`);
 
 });
-
-
 
 const fs = require('fs');
 const publicDir = path.join(__dirname, 'public');
