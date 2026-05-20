@@ -474,7 +474,7 @@ export class App implements OnInit {
         localStorage.setItem('hasBiometrics', 'true');
         this.showAlert('¡Biometría registrada con éxito!', 'success');
       } else {
-        this.showAlert('Error al verificar biometría', 'error');
+        this.showAlert(`Error: ${verification.error || 'Verificación falló'}`, 'error');
       }
     } catch (e: any) {
       console.error(e);
