@@ -52,6 +52,9 @@ app.use('/public', express.static(path.join(__dirname, 'public'), {
 
 const db = new sqlite3.Database(path.join(__dirname, 'database.sqlite'));
 
+let cachedMenu = null;
+const clearCache = () => { cachedMenu = null; };
+
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,6 +252,9 @@ const INITIAL_DATA = {
 
 // Get the full menu
 app.get('/api/menu', (req, res) => {
+  if (cachedMenu) {
+    return res.json(cachedMenu);
+  }
   db.all("SELECT * FROM items ORDER BY id ASC", (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     const menu = {};
@@ -264,6 +270,7 @@ app.get('/api/menu', (req, res) => {
         tag: row.tag
       });
     });
+    cachedMenu = menu;
     res.json(menu);
   });
 });
@@ -278,6 +285,7 @@ app.post('/api/menu/item/:id', verifyToken, (req, res) => {
   const { name, price, desc, tag } = req.body;
   db.run('UPDATE items SET name = ?, price = ?, desc = ?, tag = ? WHERE id = ?', [name, price, desc, tag, req.params.id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
+    clearCache();
     res.json({ success: true });
   });
 });
@@ -290,6 +298,7 @@ app.post('/api/menu/inflation', verifyToken, (req, res) => {
   const multiplier = 1 + (percentage / 100);
   db.run('UPDATE items SET price = CAST(price * ? AS INTEGER)', [multiplier], (err) => {
     if (err) return res.status(500).json({ error: err.message });
+    clearCache();
     res.json({ success: true });
   });
 });
@@ -339,6 +348,7 @@ app.post('/api/admin/upload-pdf', verifyToken, upload.single('pdf'), async (req,
         stmt.run(item.name, item.price, item.category, '');
       }
       stmt.finalize();
+      clearCache();
     });
 
     res.json({ 
@@ -362,6 +372,7 @@ app.post('/api/menu/category', verifyToken, (req, res) => {
     [newName, oldName],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
+      clearCache();
       res.json({ success: true, changes: this.changes });
     }
   );

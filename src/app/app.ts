@@ -143,19 +143,54 @@ export class App implements OnInit {
   }
 
   async fetchMenu() {
+    // 1. Try to load from cache (localStorage) first for instant render
+    let hasCache = false;
     try {
+      const cached = localStorage.getItem('menu_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && Object.keys(parsed).length > 0) {
+          this.menuData.set(parsed);
+          this.activeCat.set(Object.keys(parsed)[0]);
+          this.loading.set(false); // Skip spinner
+          hasCache = true;
+        }
+      }
+    } catch (e) {
+      console.error("Error reading menu cache", e);
+    }
+
+    // 2. If we don't have cache, show loading spinner
+    if (!hasCache) {
       this.loading.set(true);
+    }
+
+    // 3. Fetch fresh data in the background
+    try {
       const host = window.location.hostname === 'localhost' && window.location.port === '4200' 
         ? 'http://localhost:3000' 
         : '';
       const res = await fetch(`${host}/api/menu`);
       const data = await res.json();
+      
+      // Update UI with fresh data
       this.menuData.set(data);
-      if (Object.keys(data).length > 0) {
-        this.activeCat.set(Object.keys(data)[0]);
+      
+      // Keep active category if still valid, otherwise select first
+      const currentCat = this.activeCat();
+      if (!currentCat || !data[currentCat]) {
+        if (Object.keys(data).length > 0) {
+          this.activeCat.set(Object.keys(data)[0]);
+        }
       }
+
+      // Update localStorage cache
+      localStorage.setItem('menu_cache', JSON.stringify(data));
     } catch (e) {
       console.error("Error fetching menu", e);
+      if (!hasCache) {
+        this.showAlert("Error al cargar la información", "error");
+      }
     } finally {
       this.loading.set(false);
     }
