@@ -460,6 +460,33 @@ export class App implements OnInit {
     );
   }
 
+  async resetDb() {
+    this.showConfirm(
+      'Esto borrará TODOS los datos actuales del menú y los reemplazará con el menú original. ¿Estás segura?',
+      async () => {
+        try {
+          const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
+          const res = await fetch(`${host}/api/admin/reset-db`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${this.adminToken()}` }
+          });
+          const data = await res.json();
+          if (data.success) {
+            localStorage.removeItem('menu_cache');
+            await this.fetchMenu();
+            this.showAlert('✅ Base de datos reseteada al menú original', 'success');
+          } else {
+            this.showAlert(data.error || 'Error al resetear', 'error');
+          }
+        } catch (e) {
+          this.showAlert('Error de conexión al resetear', 'error');
+        }
+      },
+      'Resetear Base de Datos',
+      '🗑️'
+    );
+  }
+
   async onPdfUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -481,6 +508,9 @@ export class App implements OnInit {
         this.showAlert(data.message || "PDF subido correctamente", "success");
         this.showPdfModal.set(false);
         await this.fetchMenu();
+      } else {
+        console.error("Backend error:", data);
+        this.showAlert(data.error || "Ocurrió un error al procesar el PDF", "error");
       }
     } catch (e) {
       console.error(e);

@@ -133,6 +133,13 @@
           <span class="tool-desc">Cerrar edición</span>
         </div>
       </div>
+      <div class="tool-card" style="border-color: #c0392b;" (click)="resetDb()">
+        <div class="tool-icon">🗑️</div>
+        <div class="tool-info">
+          <span class="tool-title">Resetear DB</span>
+          <span class="tool-desc">Menú original</span>
+        </div>
+      </div>
     </div>
   }
 
@@ -280,12 +287,12 @@
     <div class="admin-edit-overlay">
       <div class="admin-card" style="text-align: center;">
         <div class="tool-icon" style="font-size: 48px; margin-bottom: 15px;">📄</div>
-        <h3>Cargar Carta PDF</h3>
-        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">Subí el archivo PDF de tu carta completa para que los clientes puedan descargarla.</p>
+        <h3>Actualizar desde PDF</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">Subí tu nueva carta en PDF. El sistema extraerá automáticamente los productos para actualizar los precios y agregar los nuevos al menú.</p>
         
         <input type="file" (change)="onPdfUpload($event)" accept=".pdf" #pdfInput style="display: none">
         <button class="save-btn" (click)="pdfInput.click()" [disabled]="isUploading()" style="width: 100%">
-          {{ isUploading() ? 'Subiendo...' : 'Seleccionar Archivo PDF' }}
+          {{ isUploading() ? 'Procesando PDF...' : 'Seleccionar Archivo PDF' }}
         </button>
 
         <button class="cancel-btn" (click)="showPdfModal.set(false)" style="margin-top: 10px; width: 100%">Cerrar</button>
