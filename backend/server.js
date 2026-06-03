@@ -338,6 +338,13 @@ function cleanPrice(priceVal) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+function capitalizeText(str) {
+  if (!str) return '';
+  const trimmed = str.trim();
+  if (trimmed.length === 0) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 // Directorio de caché de PDFs procesados (evita llamadas repetidas a la API)
 const PDF_CACHE_DIR = path.join(__dirname, 'pdf_cache');
 if (!fs.existsSync(PDF_CACHE_DIR)) fs.mkdirSync(PDF_CACHE_DIR);
@@ -483,8 +490,8 @@ Reglas:
     const allItems = [];
     if (parsedMenu && Array.isArray(parsedMenu.categorias)) {
       for (const cat of parsedMenu.categorias) {
-        const categoryName = cat.nombre || 'General';
-        const subcat = cat.subcategoria;
+        const categoryName = capitalizeText(cat.nombre || 'General');
+        const subcat = cat.subcategoria ? capitalizeText(cat.subcategoria) : null;
         const displayName = subcat ? `${categoryName} - ${subcat}` : categoryName;
 
         // Clasificar dinámicamente si es 'promos' o 'list'
@@ -505,9 +512,10 @@ Reglas:
 
         if (Array.isArray(cat.items)) {
           for (const item of cat.items) {
-            let desc = item.descripcion || null;
+            let desc = item.descripcion ? capitalizeText(item.descripcion) : null;
             if (item.nota) {
-              desc = desc ? `${desc} · ${item.nota}` : item.nota;
+              const capitalizedNota = capitalizeText(item.nota);
+              desc = desc ? `${desc} · ${capitalizedNota}` : capitalizedNota;
             }
 
             let tag = null;
@@ -532,7 +540,7 @@ Reglas:
             allItems.push({
               category: displayName,
               cat_type: catType,
-              name: item.nombre || 'Sin nombre',
+              name: capitalizeText(item.nombre || 'Sin nombre'),
               price: item.precio || 0,
               desc: desc,
               tag: tag
