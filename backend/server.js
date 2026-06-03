@@ -26,7 +26,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
-const { PDFParse } = require('pdf-parse');
+//const { PDFParse } = require('pdf-parse');
 const crypto = require('crypto');
 // katrix-biometrics handles WebAuthn entirely client-side — no server-side lib needed
 
