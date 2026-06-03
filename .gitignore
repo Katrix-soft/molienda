@@ -49,3 +49,28 @@ Thumbs.db
 *.sqlite
 scratch/
 backend/public/*.pdf
+backend/pdf_cache/
+
+# Test / scratch files
+test_*.js
+test_*.ts
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+test_*.py
+*.json
+!package.json
+!package-lock.json
+*.txt
+*.pdf
+.env
+
+# Python caching
+__pycache__/
+*.pyc
+
+# Legacy PDF parsing folders
+backend/public/pdf_pages/
+*.py
+backend/check_db.js

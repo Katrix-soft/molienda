@@ -133,13 +133,7 @@
           <span class="tool-desc">Cerrar edición</span>
         </div>
       </div>
-      <div class="tool-card" style="border-color: #c0392b;" (click)="resetDb()">
-        <div class="tool-icon">🗑️</div>
-        <div class="tool-info">
-          <span class="tool-title">Resetear DB</span>
-          <span class="tool-desc">Menú original</span>
-        </div>
-      </div>
+
     </div>
   }
 
@@ -195,6 +189,12 @@
         @if (searchData.totalFound > 0) {
           @for (sec of searchData.matches; track sec.cat) {
             <div class="divider-label">{{sec.cat}}</div>
+            @if (sec.cat.toLowerCase().includes('promo')) {
+              <div class="promo-notification-banner">
+                <span class="bell-icon">🔔</span>
+                <span class="banner-text">¡Ahora podés reemplazar tu café caliente de la promo por una copa de jugo natural exprimido!</span>
+              </div>
+            }
             <div class="promos-grid">
               @for (item of sec.items; track item.id) {
                 <div class="promo-card" [class.editable]="isAdmin() && isEditMode()" (click)="isAdmin() && isEditMode() ? startEdit(item) : null">
@@ -212,7 +212,7 @@
                   @if (item.desc) {
                     <div class="promo-includes">
                       @for (part of getDescParts(item.desc); track part) {
-                        <span class="desc-chip">{{part}}</span>
+                        <span class="desc-chip" [class.reserva-previa]="part.toLowerCase().includes('reserva previa')">{{part}}</span>
                       }
                     </div>
                   }
@@ -232,6 +232,12 @@
         }
       } @else if (currentContent(); as content) {
         <div class="section-title">{{content.cat}}</div>
+        @if (content.cat.toLowerCase().includes('promo')) {
+          <div class="promo-notification-banner">
+            <span class="bell-icon">🔔</span>
+            <span class="banner-text">¡Ahora podés reemplazar tu café caliente de la promo por una copa de jugo natural exprimido!</span>
+          </div>
+        }
         <div class="promos-grid">
           @for (item of content.items; track item.id) {
             <div class="promo-card" [class.editable]="isAdmin() && isEditMode()" (click)="isAdmin() && isEditMode() ? startEdit(item) : null">
@@ -249,7 +255,7 @@
               @if (item.desc) {
                 <div class="promo-includes">
                   @for (part of getDescParts(item.desc); track part) {
-                    <span class="desc-chip">{{part}}</span>
+                    <span class="desc-chip" [class.reserva-previa]="part.toLowerCase().includes('reserva previa')">{{part}}</span>
                   }
                 </div>
               }
@@ -285,20 +291,80 @@
   <!-- Modal Carga PDF -->
   @if (showPdfModal()) {
     <div class="admin-edit-overlay">
-      <div class="admin-card" style="text-align: center;">
-        <div class="tool-icon" style="font-size: 48px; margin-bottom: 15px;">📄</div>
-        <h3>Actualizar desde PDF</h3>
-        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">Subí tu nueva carta en PDF. El sistema extraerá automáticamente los productos para actualizar los precios y agregar los nuevos al menú.</p>
-        
-        <input type="file" (change)="onPdfUpload($event)" accept=".pdf" #pdfInput style="display: none">
-        <button class="save-btn" (click)="pdfInput.click()" [disabled]="isUploading()" style="width: 100%">
-          {{ isUploading() ? 'Procesando PDF...' : 'Seleccionar Archivo PDF' }}
-        </button>
+      <div class="admin-card pdf-modal-card" style="text-align: center; max-width: 420px;">
 
-        <button class="cancel-btn" (click)="showPdfModal.set(false)" style="margin-top: 10px; width: 100%">Cerrar</button>
+        <!-- ESTADO: IDLE – selección de archivo -->
+        @if (pdfStage() === 'idle') {
+          <div class="pdf-icon-wrap">📄</div>
+          <h3>Actualizar desde PDF</h3>
+          <p class="pdf-subtitle">Subí tu nueva carta en PDF y el sistema actualizará el menú automáticamente.</p>
+          <input type="file" (change)="onPdfUpload($event)" accept=".pdf" #pdfInput style="display: none">
+          <button class="save-btn" (click)="pdfInput.click()" style="width: 100%; margin-top: 8px;">
+            Seleccionar Archivo PDF
+          </button>
+          <button class="cancel-btn" (click)="closePdfModal()" style="margin-top: 10px; width: 100%;">Cerrar</button>
+        }
+
+        <!-- ESTADOS: UPLOADING / ANALYZING / SAVING / DONE -->
+        @if (pdfStage() === 'uploading' || pdfStage() === 'analyzing' || pdfStage() === 'saving' || pdfStage() === 'done') {
+          <div class="pdf-icon-wrap" [class.spin]="pdfStage() !== 'done'">
+            {{ pdfStage() === 'done' ? '🙌' : '✨' }}
+          </div>
+          <h3 [style.color]="pdfStage() === 'done' ? '#4caf50' : ''">
+            {{ pdfStage() === 'done' ? '¡Todo listo!' : 'Trabajando en tu menú' }}
+          </h3>
+
+          <div class="pdf-quote-box">
+            <p class="pdf-quote-text">{{ pdfQuote() }}</p>
+          </div>
+          @if (pdfStage() !== 'done') {
+            <button class="pdf-next-btn" (click)="nextPdfQuote()">Siguiente →</button>
+          }
+
+          <div class="pdf-steps">
+            <div class="pdf-step done">
+              <span class="step-icon">✅</span>
+              <span class="step-label">Preparando el archivo</span>
+            </div>
+            <div class="pdf-step"
+                 [class.active]="pdfStage() === 'analyzing'"
+                 [class.done]="pdfStage() === 'saving' || pdfStage() === 'done'">
+              <span class="step-icon">{{ (pdfStage() === 'saving' || pdfStage() === 'done') ? '✅' : pdfStage() === 'analyzing' ? '🔍' : '⬜' }}</span>
+              <span class="step-label">Leyendo el menú</span>
+            </div>
+            <div class="pdf-step"
+                 [class.active]="pdfStage() === 'saving'"
+                 [class.done]="pdfStage() === 'done'">
+              <span class="step-icon">{{ pdfStage() === 'done' ? '✅' : pdfStage() === 'saving' ? '💾' : '⬜' }}</span>
+              <span class="step-label">Guardando los productos</span>
+            </div>
+          </div>
+
+          @if (pdfStage() === 'done') {
+            <button class="save-btn" (click)="closePdfModal()" style="width: 100%; background: #4caf50;">
+              Aceptar
+            </button>
+          } @else {
+            <p class="pdf-hint">⏱ {{ pdfElapsed() }}s — Esto puede tardar un momento, ¡vale la pena!</p>
+          }
+        }
+
+        <!-- ESTADO: ERROR -->
+        @if (pdfStage() === 'error') {
+          <div class="pdf-icon-wrap">😔</div>
+          <h3 style="color: #e53935;">Algo salió mal</h3>
+          <p class="pdf-subtitle pdf-error-msg">{{ pdfErrorMsg() }}</p>
+          <button class="save-btn" (click)="closePdfModal()" style="width: 100%; margin-top: 20px; background: #e53935;">
+            Cerrar
+          </button>
+        }
+
       </div>
     </div>
   }
+
+
+
   <!-- Modal QR -->
   @if (showQrModal()) {
     <div class="admin-edit-overlay">

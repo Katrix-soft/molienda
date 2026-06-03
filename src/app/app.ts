@@ -68,6 +68,30 @@ export class App implements OnInit {
   showSettingsModal = signal<boolean>(false);
   hasPdf = signal<boolean>(false);
   isUploading = signal<boolean>(false);
+  pdfStage = signal<'idle' | 'uploading' | 'analyzing' | 'saving' | 'done' | 'error'>('idle');
+  pdfElapsed = signal<number>(0);
+  pdfItemCount = signal<number>(0);
+  pdfErrorMsg = signal<string>('');
+  pdfQuote = signal<string>('');
+  private pdfTimerRef: ReturnType<typeof setInterval> | null = null;
+  private pdfQuoteRef: ReturnType<typeof setInterval> | null = null;
+  private pdfQuoteIdx = 0;
+  private pdfQuoteShuffled: string[] = [];
+
+  private readonly PDF_QUOTES = [
+    'Todo lo podés cuando tenés fe en lo que hacés.',
+    'Lo que encomendás con el corazón, el tiempo lo cumple.',
+    'No te desanimes. Lo que ves crecer despacio, crece para siempre.',
+    'El que cuida los detalles pequeños, construye cosas grandes.',
+    'Seguí llamando. Las puertas que importan siempre se abren.',
+    'El trabajo sin amor no alimenta el alma. El tuyo sí.',
+    'Hay un momento para todo. Este es el tuyo.',
+    'Hacé el bien hoy. Mañana ya va a hablar por vos.',
+    'Fuiste amado antes de empezar. Eso no cambia.',
+    'El que trabaja con alegría, cosecha más de lo que siembra.',
+    'No te canses. Lo que estás construyendo vale cada segundo.',
+    'Seré contigo en cada paso que des con valentía.',
+  ];
 
   // Computed properties
   readonly searchMatches = computed(() => {
@@ -487,6 +511,43 @@ export class App implements OnInit {
     );
   }
 
+  private startPdfTimer() {
+    this.pdfElapsed.set(0);
+    this.pdfTimerRef = setInterval(() => this.pdfElapsed.update(v => v + 1), 1000);
+  }
+
+  private stopPdfTimer() {
+    if (this.pdfTimerRef) { clearInterval(this.pdfTimerRef); this.pdfTimerRef = null; }
+    if (this.pdfQuoteRef) { clearInterval(this.pdfQuoteRef); this.pdfQuoteRef = null; }
+  }
+
+  private startPdfQuotes() {
+    this.pdfQuoteShuffled = [...this.PDF_QUOTES].sort(() => Math.random() - 0.5);
+    this.pdfQuoteIdx = 0;
+    this.pdfQuote.set(this.pdfQuoteShuffled[0]);
+    // Avanza sola cada 30 segundos
+    this.pdfQuoteRef = setInterval(() => this.nextPdfQuote(), 30000);
+  }
+
+  nextPdfQuote() {
+    if (!this.pdfQuoteShuffled.length) return;
+    this.pdfQuoteIdx = (this.pdfQuoteIdx + 1) % this.pdfQuoteShuffled.length;
+    this.pdfQuote.set(this.pdfQuoteShuffled[this.pdfQuoteIdx]);
+    // Reinicia el timer para que la nueva frase dure otros 30s
+    if (this.pdfQuoteRef) { clearInterval(this.pdfQuoteRef); }
+    this.pdfQuoteRef = setInterval(() => this.nextPdfQuote(), 30000);
+  }
+
+  closePdfModal() {
+    this.showPdfModal.set(false);
+    this.pdfStage.set('idle');
+    this.pdfElapsed.set(0);
+    this.pdfItemCount.set(0);
+    this.pdfErrorMsg.set('');
+    this.pdfQuote.set('');
+    this.stopPdfTimer();
+  }
+
   async onPdfUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -497,6 +558,14 @@ export class App implements OnInit {
 
     try {
       this.isUploading.set(true);
+      this.pdfStage.set('uploading');
+      this.startPdfQuotes();
+      this.startPdfTimer();
+
+      // Give UI a tick to show "uploading" phase
+      await new Promise(r => setTimeout(r, 500));
+      this.pdfStage.set('analyzing');
+
       const host = window.location.hostname === 'localhost' && window.location.port === '4200' ? 'http://localhost:3000' : '';
       const res = await fetch(`${host}/api/admin/upload-pdf`, {
         method: 'POST',
@@ -505,16 +574,23 @@ export class App implements OnInit {
       });
       const data = await res.json();
       if (data.success) {
-        this.showAlert(data.message || "PDF subido correctamente", "success");
-        this.showPdfModal.set(false);
+        this.pdfStage.set('saving');
+        await new Promise(r => setTimeout(r, 600));
+        this.pdfItemCount.set(data.count ?? 0);
+        this.pdfStage.set('done');
+        this.stopPdfTimer();
         await this.fetchMenu();
       } else {
         console.error("Backend error:", data);
-        this.showAlert(data.error || "Ocurrió un error al procesar el PDF", "error");
+        this.pdfErrorMsg.set(data.error || "Ocurrió un error al procesar el PDF");
+        this.pdfStage.set('error');
+        this.stopPdfTimer();
       }
     } catch (e) {
       console.error(e);
-      this.showAlert("Error al subir el PDF", "error");
+      this.pdfErrorMsg.set("Error de red al subir el PDF");
+      this.pdfStage.set('error');
+      this.stopPdfTimer();
     } finally {
       this.isUploading.set(false);
     }

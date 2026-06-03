@@ -783,6 +783,12 @@
   line-height: 1;
 }
 
+.desc-chip.reserva-previa {
+  background: #fdf2f2;
+  color: #d93838;
+  border: 1px solid #ffc9c9;
+}
+
 .desc-parts-container {
   display: flex;
   flex-direction: column;
@@ -1232,4 +1238,208 @@
   border-radius: 100px;
   border: 1px solid var(--border);
   white-space: nowrap;
+}
+
+/* Promo Notification Banner */
+.promo-notification-banner {
+  background: linear-gradient(135deg, #f4ebf7 0%, #e8daf0 100%);
+  border: 1px solid rgba(142, 84, 148, 0.2);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  animation: slideDown 0.3s ease-out;
+}
+
+.promo-notification-banner .bell-icon {
+  font-size: 20px;
+  animation: ring 2s infinite ease-in-out;
+  display: inline-block;
+}
+
+.promo-notification-banner .banner-text {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #4a148c;
+  line-height: 1.4;
+}
+
+
+@keyframes ring {
+  0% { transform: rotate(0); }
+  5% { transform: rotate(15deg); }
+  10% { transform: rotate(-15deg); }
+  15% { transform: rotate(10deg); }
+  20% { transform: rotate(-10deg); }
+  25% { transform: rotate(5deg); }
+  30% { transform: rotate(-5deg); }
+  35% { transform: rotate(0); }
+  100% { transform: rotate(0); }
+}
+
+/* ─── PDF Progress Modal ───────────────────────────────────── */
+.pdf-modal-card {
+  gap: 0 !important;
+}
+
+.pdf-icon-wrap {
+  font-size: 52px;
+  margin-bottom: 12px;
+  display: block;
+  line-height: 1;
+}
+
+.pdf-icon-wrap.spin {
+  display: inline-block;
+  animation: pdfSpin 2s linear infinite;
+}
+
+@keyframes pdfSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.pdf-icon-wrap.success-pop {
+  animation: successPop 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes successPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.pdf-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 6px 0 16px;
+  line-height: 1.5;
+}
+
+.pdf-timer {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold-dark);
+  letter-spacing: 0.02em;
+  margin-bottom: 20px;
+}
+
+.pdf-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  background: var(--gold-light, #fdf8f2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.pdf-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  opacity: 0.35;
+  transition: opacity 0.3s ease;
+}
+
+.pdf-step.active {
+  opacity: 1;
+}
+
+.pdf-step.done {
+  opacity: 0.75;
+}
+
+.step-icon {
+  font-size: 20px;
+  width: 26px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.pdf-step.active .step-label {
+  color: var(--primary, #5a3e28);
+}
+
+.pdf-step.active .step-icon {
+  animation: stepPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes stepPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.pdf-hint {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 0;
+}
+
+.pdf-error-msg {
+  font-size: 13px;
+  color: #b71c1c;
+  background: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  text-align: left;
+  word-break: break-word;
+}
+
+/* Quote box durante la carga */
+.pdf-quote-box {
+  background: linear-gradient(135deg, #fdf8f2, #fef3e2);
+  border: 1px solid var(--gold, #c5a880);
+  border-left: 4px solid var(--gold, #c5a880);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin: 4px 0 18px;
+  text-align: left;
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+}
+
+.pdf-quote-text {
+  font-size: 15.5px;
+  font-style: italic;
+  color: var(--dark, #2c1a0e);
+  line-height: 1.65;
+  margin: 0;
+  font-weight: 500;
+}
+
+.pdf-next-btn {
+  display: block;
+  margin: -10px 0 14px auto;
+  background: transparent;
+  border: none;
+  color: var(--gold-dark, #a07830);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 2px;
+  opacity: 0.75;
+  transition: opacity 0.2s;
+  letter-spacing: 0.02em;
+}
+
+.pdf-next-btn:hover {
+  opacity: 1;
 }

@@ -1,3 +1,20 @@
+// Cargar variables de entorno desde el .env raíz sin depender de dotenv
+(function loadEnv() {
+  try {
+    const fs = require('fs'), path = require('path');
+    const envPath = path.join(__dirname, '../.env');
+    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.substring(0, eqIdx).trim();
+      const val = trimmed.substring(eqIdx + 1).trim();
+      if (key && !(key in process.env)) process.env[key] = val;
+    }
+  } catch(e) { /* .env opcional */ }
+})();
 const express = require('express');
 const { execSync } = require('child_process');
 const cors = require('cors');
@@ -9,8 +26,8 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
-const pdfModule = require('pdf-parse');
-const pdf = pdfModule.PDFParse || pdfModule;
+const { PDFParse } = require('pdf-parse');
+const crypto = require('crypto');
 // katrix-biometrics handles WebAuthn entirely client-side — no server-side lib needed
 
 const JWT_SECRET = process.env.JWT_SECRET || 'petit-patisserie-super-secret-key-2026';
@@ -305,144 +322,231 @@ app.post('/api/menu/inflation', verifyToken, (req, res) => {
   });
 });
 
-function hasPdftoppm() {
-  try {
-    execSync('pdftoppm -v', { stdio: 'ignore' });
-    return true;
-  } catch (e) {
-    return false;
+function cleanPrice(priceVal) {
+  if (priceVal === undefined || priceVal === null) return 0;
+  let str = priceVal.toString().trim();
+  if (/^\d+$/.test(str)) {
+    return parseInt(str, 10);
   }
+  str = str.replace(/\$/g, '').trim();
+  const commaIdx = str.lastIndexOf(',');
+  if (commaIdx !== -1 && commaIdx > str.length - 4) {
+    str = str.substring(0, commaIdx);
+  }
+  str = str.replace(/\./g, '');
+  const parsed = parseInt(str, 10);
+  return isNaN(parsed) ? 0 : parsed;
 }
 
-// Cargar Menú PDF y procesar inteligentemente mediante LLM Visual o de Texto
+// Directorio de caché de PDFs procesados (evita llamadas repetidas a la API)
+const PDF_CACHE_DIR = path.join(__dirname, 'pdf_cache');
+if (!fs.existsSync(PDF_CACHE_DIR)) fs.mkdirSync(PDF_CACHE_DIR);
+
+// Cargar Menú PDF y procesar inteligentemente mediante Claude con caché de disco
 app.post('/api/admin/upload-pdf', verifyToken, upload.single('pdf'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   try {
     const pdfPath = req.file.path;
-    let allItems = [];
-    let processedPages = 0;
+    const pdfBuffer = fs.readFileSync(pdfPath);
 
-    if (hasPdftoppm()) {
-      // --- OPCION A: Producción (VPS) usando imágenes con llava ---
-      const imgDir = path.join(publicDir, 'pdf_pages');
-      if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir);
+    // ── HASH CACHE: mismo PDF = cero costo de API ──────────────────
+    const pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+    const cacheFile = path.join(PDF_CACHE_DIR, `${pdfHash}.json`);
 
-      execSync(`pdftoppm -jpeg -r 150 "${pdfPath}" "${imgDir}/page"`);
-
-      const pages = fs.readdirSync(imgDir)
-        .filter(f => f.endsWith('.jpg'))
-        .sort();
-
-      for (const page of pages) {
-        const imgPath = path.join(imgDir, page);
-        const imgBase64 = fs.readFileSync(imgPath).toString('base64');
-        const promptText = `Analizá esta imagen de un menú de café/pastelería. Extraé TODOS los productos con sus precios.
-Devolvé SOLO un JSON array válido, sin texto adicional.
-Formato: [{"category":"nombre categoría","cat_type":"list o promos","name":"nombre","price":0000,"desc":"descripción o null","tag":"sin-tacc o vegan o null"}]
-- cat_type "promos" si incluye bebida+comida juntos, sino "list"
-- price como número entero sin $ ni puntos
-- tag: "sin-tacc", "vegan", o null
-SOLO EL JSON:`;
-
-        const ollamaRes = await fetch('https://apikat.katrix.com.ar/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'llava:7b',
-            stream: false,
-            prompt: promptText,
-            images: [imgBase64]
-          })
-        });
-
-        const data = await ollamaRes.json();
-
-        try {
-          let jsonStr = data.response.trim().replace(/```json|```/g, '').trim();
-          const start = jsonStr.indexOf('[');
-          const end = jsonStr.lastIndexOf(']');
-          if (start !== -1 && end !== -1) {
-            const items = JSON.parse(jsonStr.substring(start, end + 1));
-            allItems = allItems.concat(items);
+    if (fs.existsSync(cacheFile)) {
+      console.log(`[PDF Cache HIT] Hash: ${pdfHash.slice(0, 12)}... — Restoring from cache.`);
+      const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+      // Restaurar items en la base de datos desde el caché
+      if (Array.isArray(cached.items) && cached.items.length > 0) {
+        db.serialize(() => {
+          db.run('DELETE FROM items');
+          const stmt = db.prepare(
+            'INSERT INTO items (category, cat_type, name, price, desc, tag) VALUES (?, ?, ?, ?, ?, ?)'
+          );
+          for (const item of cached.items) {
+            stmt.run(item.category, item.cat_type, item.name, cleanPrice(item.price), item.desc, item.tag);
           }
-        } catch (e) {
-          console.log(`Page ${page} parse failed:`, e.message);
-        }
+          stmt.finalize();
+          clearCache();
+        });
       }
-
-      processedPages = pages.length;
-      pages.forEach(p => fs.unlinkSync(path.join(imgDir, p)));
-
-    } else {
-      // --- OPCION B: Desarrollo Local (Windows) usando texto con qwen ---
-      const dataBuffer = fs.readFileSync(pdfPath);
-      const pdfData = await pdf(dataBuffer);
-      let pdfText = pdfData.text;
-
-      // Truncar el texto para ignorar basura y frases finales
-      const stopIndex = pdfText.toUpperCase().indexOf('GRACIAS POR SER PARTE');
-      if (stopIndex !== -1) {
-        pdfText = pdfText.substring(0, stopIndex);
-      }
-
-      let token = process.env.OPENWEBUI_TOKEN;
-      if (!token) {
-        try {
-          const envFile = fs.readFileSync(path.join(__dirname, '../.env'), 'utf-8');
-          const match = envFile.match(/OPENWEBUI_TOKEN=(.*)/);
-          if (match) token = match[1].trim();
-        } catch(e) {}
-      }
-
-      const promptText = `Analizá el siguiente texto extraído de un menú de café/pastelería. Extraé TODOS los productos con sus precios.
-Texto del menú:
-${pdfText}
-
-Devolvé SOLO un JSON array válido, sin texto adicional ni bloques markdown, que empiece con [ y termine con ].
-Formato: [{"category":"nombre categoría","cat_type":"list o promos","name":"nombre","price":0000,"desc":"descripción o null","tag":"sin-tacc o vegan o null"}]
-- cat_type "promos" si incluye bebida+comida juntos, sino "list"
-- price como número entero sin $ ni puntos
-- tag: "sin-tacc", "vegan", o null
-SOLO EL JSON:`;
-
-      const response = await fetch('https://vps-katrix-openwebui.juidi9.easypanel.host/api/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'qwen2.5:1.5b',
-          messages: [{ role: 'user', content: promptText }]
-        })
+      return res.json({
+        success: true,
+        count: cached.count,
+        message: `⚡ Menú restaurado desde caché (${cached.count} productos). Sin costo de API.`,
+        cached: true
       });
+    }
+    console.log(`[PDF Cache MISS] Hash: ${pdfHash.slice(0, 12)}... — Calling Claude API.`);
+    // ───────────────────────────────────────────────────────────────
 
-      const data = await response.json();
+    const base64Pdf = pdfBuffer.toString('base64');
 
-      if (!response.ok) {
-        throw new Error(`OpenWebUI API Error: ${data.error?.message || response.statusText}`);
-      }
+    const anthropicKey = process.env.anthropicKey || process.env.API;
+    if (!anthropicKey) {
+      return res.status(500).json({ error: 'Clave API de Anthropic (anthropicKey / API) no configurada en el servidor.' });
+    }
 
-      try {
-        let jsonStr = data.choices[0].message.content.trim().replace(/```json|```/g, '').trim();
-        const start = jsonStr.indexOf('[');
-        const end = jsonStr.lastIndexOf(']');
-        if (start !== -1 && end !== -1) {
-          const items = JSON.parse(jsonStr.substring(start, end + 1));
-          allItems = allItems.concat(items);
+    const PROMPT = `Analizá este menú de restaurante/café y extraé TODOS los ítems sin omitir ninguno.
+Devolvé ÚNICAMENTE un JSON válido con esta estructura exacta, sin texto adicional, sin markdown, sin backticks:
+
+{
+  "nombre_local": "string",
+  "categorias": [
+    {
+      "nombre": "string",
+      "subcategoria": "string o null",
+      "items": [
+        {
+          "nombre": "string",
+          "descripcion": "string o null",
+          "precio": number o null,
+          "tags": ["sin_tacc", "vegano", "nuevo", "sin_lactosa"],
+          "nota": "string o null"
         }
-      } catch (e) {
-        throw new Error('El modelo no devolvió un JSON válido. Reintentá.');
+      ]
+    }
+  ]
+}
+
+Reglas:
+- Extraé ABSOLUTAMENTE TODOS los ítems
+- Precios como números sin el símbolo $
+- Respetá la jerarquía de categorías exactamente como aparece
+- Tags solo los que apliquen a cada ítem`;
+
+    // ── PROMPT CACHING: reduce 90% el costo de input en re-llamadas ─
+    const body = {
+      model: 'claude-sonnet-4-5',
+      max_tokens: 16000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: base64Pdf
+            },
+            cache_control: { type: 'ephemeral' }  // cachea el PDF
+          },
+          {
+            type: 'text',
+            text: PROMPT,
+            cache_control: { type: 'ephemeral' }  // cachea el prompt
+          }
+        ]
+      }]
+    };
+    // ───────────────────────────────────────────────────────────────
+
+    console.log("Calling Anthropic Claude API for PDF parsing...");
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'pdfs-2024-09-25,prompt-caching-2024-07-31'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      console.error("Anthropic API error response:", data.error);
+      return res.status(500).json({ error: 'Error de la API de Anthropic: ' + data.error.message });
+    }
+
+    const rawText = data.content
+      .map(b => b.text || '')
+      .join('')
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+
+    console.log("Raw text response from Claude extracted. Parsing JSON...");
+    
+    let parsedMenu;
+    try {
+      parsedMenu = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.error("Failed to parse JSON response from Claude. Raw response was:\n", rawText);
+      return res.status(500).json({ 
+        error: 'El modelo no devolvió un JSON válido. Revisa los logs del servidor para ver la respuesta completa.',
+        rawText: rawText 
+      });
+    }
+
+    const allItems = [];
+    if (parsedMenu && Array.isArray(parsedMenu.categorias)) {
+      for (const cat of parsedMenu.categorias) {
+        const categoryName = cat.nombre || 'General';
+        const subcat = cat.subcategoria;
+        const displayName = subcat ? `${categoryName} - ${subcat}` : categoryName;
+
+        // Clasificar dinámicamente si es 'promos' o 'list'
+        const lowerCat = categoryName.toLowerCase();
+        let catType = 'list';
+        if (
+          lowerCat.includes('promo') ||
+          lowerCat.includes('compartir') ||
+          lowerCat.includes('almuerzo') ||
+          lowerCat.includes('tarde') ||
+          lowerCat.includes('menu') ||
+          lowerCat.includes('menú') ||
+          lowerCat.includes('para dos') ||
+          lowerCat.includes('para 2')
+        ) {
+          catType = 'promos';
+        }
+
+        if (Array.isArray(cat.items)) {
+          for (const item of cat.items) {
+            let desc = item.descripcion || null;
+            if (item.nota) {
+              desc = desc ? `${desc} · ${item.nota}` : item.nota;
+            }
+
+            let tag = null;
+            if (Array.isArray(item.tags)) {
+              const lowerTags = item.tags.map(t => String(t).toLowerCase());
+              if (
+                lowerTags.includes('sin_tacc') ||
+                lowerTags.includes('sin-tacc') ||
+                lowerTags.includes('sintacc') ||
+                lowerTags.includes('sin_gluten')
+              ) {
+                tag = 'sin-tacc';
+              } else if (
+                lowerTags.includes('vegano') ||
+                lowerTags.includes('vegan') ||
+                lowerTags.includes('vegetariano')
+              ) {
+                tag = 'vegan';
+              }
+            }
+
+            allItems.push({
+              category: displayName,
+              cat_type: catType,
+              name: item.nombre || 'Sin nombre',
+              price: item.precio || 0,
+              desc: desc,
+              tag: tag
+            });
+          }
+        }
       }
-      processedPages = 1;
     }
 
     if (allItems.length === 0) {
-      return res.status(400).json({ error: 'No se pudieron extraer productos.' });
+      return res.status(400).json({ error: 'No se pudieron extraer productos del JSON retornado por Claude.' });
     }
 
-    // 4. Guardar en DB
+    // Guardar en DB
     db.serialize(() => {
       db.run('DELETE FROM items');
       const stmt = db.prepare(
@@ -450,23 +554,33 @@ SOLO EL JSON:`;
       );
       for (const item of allItems) {
         stmt.run(
-          item.category || 'General',
-          item.cat_type || 'list',
+          item.category,
+          item.cat_type,
           item.name,
-          item.price || 0,
-          item.desc || null,
-          item.tag || null
+          cleanPrice(item.price),
+          item.desc,
+          item.tag
         );
       }
       stmt.finalize();
       clearCache();
     });
 
-    res.json({
+    // ── Guardar resultado en caché de disco para próximas subidas del mismo PDF ──
+    const successPayload = {
       success: true,
       count: allItems.length,
-      message: `Se importaron ${allItems.length} productos desde ${processedPages} páginas.`
-    });
+      message: `Se importaron ${allItems.length} productos usando Claude Sonnet 4.5.`,
+      items: allItems
+    };
+    try {
+      fs.writeFileSync(cacheFile, JSON.stringify(successPayload), 'utf-8');
+      console.log(`[PDF Cache] Resultado guardado en caché: ${pdfHash.slice(0, 12)}...`);
+    } catch (e) {
+      console.warn('[PDF Cache] No se pudo escribir el archivo de caché:', e.message);
+    }
+
+    res.json({ success: true, count: allItems.length, message: successPayload.message });
 
   } catch (err) {
     console.error('PDF Process Error:', err);
